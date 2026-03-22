@@ -39,17 +39,29 @@ The following is the database schema for the system:
   - `Completed_At` (Datetime)
 
 ## 3. Models
+
 ### User Model
-- `username`: Represents the name of the user.
-- `email`: User email for notifications.
-- `password_hash`: Secure storage of user passwords.
+- Email: Primary identifier and email for the user.
+- Name: Full name of the user.
+- Password: Secure storage of user passwords (hashed).
+- Role: User role classification (Staff or Admin).
+- Note: Additional notes about the user.
 
 ### Document Model
-- `title`: Title of the document for identification.
-- `file_path`: Path to the stored document.
+- FileName: Primary identifier for the document file.
+- Name: Reference to the User who created/manages the document (Foreign Key).
+- BIB: Bibliographic information of the document.
+- CallNumber: Library call number for cataloging.
+- Collection: Collection identifier the document belongs to.
+- PublishDate: Publication date of the document (year).
+- FilePath: Path to the stored document file.
+- CreatedAt: Timestamp when the document was created.
 
-### DigitizationProcess Model
-- `status`: Current status of the digitization process.
+### ProcessTracking Model
+- TransactionID: Unique identifier for each digitization transaction.
+- FileName: Reference to the Document being processed (Foreign Key).
+- Status: Current status of the digitization process (e.g., Pending, Processing, Completed).
+- CompletedAt: Timestamp when the process was completed.
 
 ## 4. Implementation Roadmap
 - **Phase 1**: Requirements Gathering (Month 1)
@@ -63,8 +75,6 @@ The backend follows a layered architecture pattern, including:
 - **Presentation Layer**: Handles API requests and responses.
 - **Service Layer**: Contains business logic.
 - **Data Access Layer**: Manages database interactions.
-
----
-
+  
 ## Conclusion
 This document serves as a foundational guide for the backend design of the Digitization Process Management System. Further iterations may refine the models and structure based on requirements and feedback.
