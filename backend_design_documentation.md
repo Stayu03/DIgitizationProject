@@ -63,14 +63,8 @@ The following is the database schema for the system:
 - Status: Current status of the digitization process (e.g., Pending, Processing, Completed).
 - CompletedAt: Timestamp when the process was completed.
 
-## 4. Implementation Roadmap
-- **Phase 1**: Requirements Gathering (Month 1)
-- **Phase 2**: System Design (Month 2)
-- **Phase 3**: Development and Unit Testing (Months 3-5)
-- **Phase 4**: Integration Testing (Month 6)
-- **Phase 5**: Deployment and Monitoring (Month 7)
 
-## 5. Architectural Patterns
+## 4. Architectural Patterns
 The backend follows a layered architecture pattern, including:
 - **Presentation Layer**: Handles API requests and responses.
 - **Service Layer**: Contains business logic.
