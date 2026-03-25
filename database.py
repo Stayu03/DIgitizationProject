@@ -32,39 +32,205 @@ def get_connection(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
 
 
 def init_database(conn: sqlite3.Connection) -> None:
-	"""Create tables using the agreed schema from backend design document."""
-	conn.executescript(
-		"""
-		CREATE TABLE IF NOT EXISTS users (
-			email TEXT PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE,
-			password TEXT NOT NULL,
-			role TEXT NOT NULL CHECK (role IN ('Staff', 'Admin')),
-			note TEXT DEFAULT ''
-		);
+    """Create tables using the agreed schema from backend design document."""
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('Staff', 'Admin')),
+            note TEXT DEFAULT ''
+        );
 
-		CREATE TABLE IF NOT EXISTS documents (
-			file_name TEXT PRIMARY KEY,
-			name TEXT NOT NULL,
-			bib TEXT NOT NULL DEFAULT '',
-			call_number TEXT NOT NULL DEFAULT '',
-			collection TEXT NOT NULL DEFAULT '',
-			publish_date INTEGER,
-			file_path TEXT NOT NULL DEFAULT '',
-			created_at TEXT NOT NULL,
-			FOREIGN KEY (name) REFERENCES users(name)
-		);
+        CREATE TABLE IF NOT EXISTS documents (
+            file_name TEXT PRIMARY KEY,
+            user_name TEXT NOT NULL,
+            bib TEXT NOT NULL DEFAULT '',
+            call_number TEXT NOT NULL DEFAULT '',
+            collection TEXT NOT NULL DEFAULT '',
+            title TEXT NOT NULL DEFAULT '',
+            publish_date INTEGER,
+            file_path TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_name) REFERENCES users(name)
+        );
 
-		CREATE TABLE IF NOT EXISTS process_tracking (
-			transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-			file_name TEXT NOT NULL,
-			status TEXT NOT NULL,
-			completed_at TEXT,
-			FOREIGN KEY (file_name) REFERENCES documents(file_name)
-		);
-		"""
-	)
-	conn.commit()
+        CREATE TABLE IF NOT EXISTS process_tracking (
+            transaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_name TEXT NOT NULL,
+            status TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (file_name) REFERENCES documents(file_name)
+        );
+        """
+    )
+
+    # Migrate old documents schema: name -> user_name, add title
+    doc_cols = [r["name"] for r in conn.execute("PRAGMA table_info(documents)").fetchall()]
+    needs_migration = ("name" in doc_cols) or ("user_name" not in doc_cols) or ("title" not in doc_cols)
+
+    if needs_migration:
+        user_col = "name" if "name" in doc_cols else "user_name"
+        title_expr = "title" if "title" in doc_cols else "''"
+
+        conn.execute("PRAGMA foreign_keys = OFF;")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS documents_new (
+                file_name TEXT PRIMARY KEY,
+                user_name TEXT NOT NULL,
+                bib TEXT NOT NULL DEFAULT '',
+                call_number TEXT NOT NULL DEFAULT '',
+                collection TEXT NOT NULL DEFAULT '',
+                title TEXT NOT NULL DEFAULT '',
+                publish_date INTEGER,
+                file_path TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_name) REFERENCES users(name)
+            );
+            """
+        )
+        conn.execute(
+            f"""
+            INSERT OR IGNORE INTO documents_new
+            (file_name, user_name, bib, call_number, collection, title, publish_date, file_path, created_at)
+            SELECT file_name, {user_col}, bib, call_number, collection, {title_expr}, publish_date, file_path, created_at
+            FROM documents;
+            """
+        )
+        conn.execute("DROP TABLE documents;")
+        conn.execute("ALTER TABLE documents_new RENAME TO documents;")
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+    conn.commit()
+
+def add_document(
+    conn: sqlite3.Connection,
+    file_name: str,
+    user_name: str,
+    bib: str,
+    call_number: str,
+    collection: str,
+    title: str,
+    publish_date: Optional[int],
+    file_path: str,
+    created_at: Optional[str] = None,
+) -> None:
+    """Create a new document and initialize process status as Pending."""
+    created_at_value = created_at or _iso_now()
+
+    conn.execute(
+        """
+        INSERT INTO documents (
+            file_name, user_name, bib, call_number, collection, title, publish_date, file_path, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            file_name.strip(),
+            user_name.strip(),
+            bib.strip(),
+            call_number.strip(),
+            collection.strip(),
+            title.strip(),
+            publish_date,
+            file_path.strip(),
+            created_at_value,
+        ),
+    )
+
+    conn.execute(
+        """
+        INSERT INTO process_tracking (file_name, status, completed_at)
+        VALUES (?, ?, ?)
+        """,
+        (file_name.strip(), "Pending", None),
+    )
+
+    conn.commit()
+
+# ...existing code...
+
+def list_documents(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """List documents with their latest tracking status."""
+    rows = conn.execute(
+        """
+        SELECT
+            d.file_name,
+            d.user_name,
+            d.bib,
+            d.call_number,
+            d.collection,
+            d.title,
+            d.publish_date,
+            d.file_path,
+            d.created_at,
+            COALESCE(pt.status, 'Pending') AS current_status,
+            pt.completed_at AS last_completed_at
+        FROM documents d
+        LEFT JOIN (
+            SELECT p1.file_name, p1.status, p1.completed_at
+            FROM process_tracking p1
+            INNER JOIN (
+                SELECT file_name, MAX(transaction_id) AS max_id
+                FROM process_tracking
+                GROUP BY file_name
+            ) p2 ON p1.file_name = p2.file_name AND p1.transaction_id = p2.max_id
+        ) pt ON d.file_name = pt.file_name
+        ORDER BY d.created_at DESC
+        """
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_document(conn: sqlite3.Connection, file_name: str) -> Optional[dict[str, Any]]:
+    row = conn.execute(
+        """
+        SELECT file_name, user_name, bib, call_number, collection, title, publish_date, file_path, created_at
+        FROM documents
+        WHERE file_name = ?
+        """,
+        (file_name,),
+    ).fetchone()
+    return dict(row) if row else None
+
+# ...existing code...
+
+def run_startup(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
+    """Initialize database and return ready-to-use connection."""
+    conn = get_connection(db_path)
+    init_database(conn)
+    seed_default_users(conn)
+
+    try:
+        add_user(
+            conn,
+            "somyingjd@gmail.com",
+            "สมหญิง ใจดี",
+            "12345678",
+            "Staff",
+            "manual test user",
+        )
+    except (sqlite3.IntegrityError, ValueError):
+        pass
+
+    try:
+        add_document(
+            conn,
+            "RA-00001",
+            "สมหญิง ใจดี",   # user_name (FK -> users.name)
+            "b12345678",
+            "RA121224",
+            "Rare Books",
+            "กถาสริตสาคร",   # title
+            2024,
+            "/tmp/doc001.pdf",
+        )
+    except sqlite3.IntegrityError:
+        pass
+
+    return conn
 
 
 def seed_default_users(conn: sqlite3.Connection) -> None:
@@ -226,17 +392,16 @@ def add_process_tracking(conn: sqlite3.Connection, file_name: str, status: str, 
 	conn.commit()
 
 
-def get_process_history(conn: sqlite3.Connection, file_name: str) -> list[dict[str, Any]]:
-	rows = conn.execute(
-		"""
-		SELECT transaction_id, file_name, status, completed_at
-		FROM process_tracking
-		WHERE file_name = ?
-		ORDER BY transaction_id DESC
-		""",
-		(file_name,),
-	).fetchall()
-	return [dict(row) for row in rows]
+def get_document(conn: sqlite3.Connection, file_name: str) -> Optional[dict[str, Any]]:
+    row = conn.execute(
+        """
+        SELECT file_name, user_name, bib, call_number, collection, title, publish_date, file_path, created_at
+        FROM documents
+        WHERE file_name = ?
+        """,
+        (file_name,),
+    ).fetchone()
+    return dict(row) if row else None
 
 
 def list_status_counts(conn: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -283,11 +448,12 @@ def run_startup(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     try:
         add_document(
             conn,
-            "doc001",
-            "สมหญิง ใจดี",  # ต้องตรงกับ users.name (foreign key)
-            "BIB001",
-            "QA123 .P9",
-            "General Collection",
+            "RA-00001",
+            "สมหญิง ใจดี",   # user_name (FK -> users.name)
+            "b12345678",
+            "RA121224",
+            "Rare Books",
+            "กถาสริตสาคร",   # title
             2024,
             "/tmp/doc001.pdf",
         )
