@@ -16,17 +16,18 @@ The following is the database schema for the system:
 
 - **Users**  
   - `Email` (Primary Key, String)  
-  - `Name` (String)  
+  - `UserName` (String)  
   - `Password` (String)  
   - `Role` (String)
   - `Note` (String)
 
 - **Documents**  
   - `FileName` (Primary Key, String)
-  - `Name` (Foreign Key, String)  
+  - `UserName` (Foreign Key, String)  
   - `BIB' (String)  
   - `CallNumber` (String)
-  - `Collection' (String)
+  - `Collection` (String)
+  - `Title`(String)
   - `PublishDate' (Integer)  
   - `FilePath` (String)  
   - `CreatedAt` (Datetime)
