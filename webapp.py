@@ -1,0 +1,235 @@
+"""Flask application for the Digitization Process Management System."""
+
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+import sqlite3
+from functools import wraps
+from database import (
+    run_startup,
+    add_user,
+    authenticate_user,
+    list_users,
+    add_document,
+    list_documents,
+    get_document,
+    add_process_tracking,
+    list_status_counts,
+)
+
+app = Flask(__name__)
+app.secret_key = "your-secret-key-change-in-production"
+
+# Initialize database on startup
+conn = run_startup()
+
+
+def login_required(f):
+    """Decorator to check if user is logged in."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_email" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ==================== Authentication Routes ====================
+
+@app.route("/", methods=["GET"])
+def index():
+    """Home page - redirect based on login status."""
+    if "user_email" in session:
+        return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """User login page."""
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        user = authenticate_user(conn, email, password)
+        if user:
+            session["user_email"] = user["email"]
+            session["user_name"] = user["user_name"]
+            session["user_role"] = user["role"]
+            return redirect(url_for("dashboard"))
+        else:
+            return render_template("login.html", error="Invalid email or password")
+
+    return render_template("login.html")
+
+
+@app.route("/logout", methods=["GET"])
+def logout():
+    """User logout."""
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """User registration."""
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user_name = request.form.get("user_name", "").strip()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "Staff")
+
+        try:
+            add_user(conn, email, user_name, password, role, "")
+            return redirect(url_for("login"))
+        except sqlite3.IntegrityError as e:
+            error_msg = "Email or user_name already exists" if "UNIQUE" in str(e) else str(e)
+            return render_template("register.html", error=error_msg)
+        except ValueError as e:
+            return render_template("register.html", error=str(e))
+
+    return render_template("register.html")
+
+
+# ==================== Dashboard Routes ====================
+
+@app.route("/dashboard", methods=["GET"])
+@login_required
+def dashboard():
+    """Dashboard - show summary and recent documents."""
+    status_counts = list_status_counts(conn)
+    recent_docs = list_documents(conn)[:5]
+
+    return render_template(
+        "dashboard.html",
+        status_counts=status_counts,
+        recent_docs=recent_docs,
+        user_name=session.get("user_name"),
+    )
+
+
+# ==================== Document Routes ====================
+
+@app.route("/documents", methods=["GET"])
+@login_required
+def documents_list():
+    """Display all documents."""
+    docs = list_documents(conn)
+    return render_template("documents_list.html", documents=docs)
+
+
+@app.route("/documents/add", methods=["GET", "POST"])
+@login_required
+def add_document_page():
+    """Add a new document."""
+    if request.method == "POST":
+        file_name = request.form.get("file_name", "").strip()
+        user_name = request.form.get("user_name", "").strip()
+        bib = request.form.get("bib", "").strip()
+        call_number = request.form.get("call_number", "").strip()
+        collection = request.form.get("collection", "").strip()
+        title = request.form.get("title", "").strip()
+        publish_date = request.form.get("publish_date", "")
+        file_path = request.form.get("file_path", "").strip()
+
+        publish_date = int(publish_date) if publish_date else None
+
+        try:
+            add_document(
+                conn,
+                file_name,
+                user_name,
+                bib,
+                call_number,
+                collection,
+                title,
+                publish_date,
+                file_path,
+            )
+            return redirect(url_for("documents_list"))
+        except sqlite3.IntegrityError as e:
+            error_msg = "Document with this file_name already exists"
+            users = list_users(conn)
+            return render_template("add_document.html", error=error_msg, users=users)
+
+    users = list_users(conn)
+    return render_template("add_document.html", users=users)
+
+
+@app.route("/documents/<file_name>", methods=["GET"])
+@login_required
+def view_document(file_name):
+    """View document details."""
+    doc = get_document(conn, file_name)
+    if not doc:
+        return "Document not found", 404
+    return render_template("view_document.html", document=doc)
+
+
+# ==================== API Routes ====================
+
+@app.route("/api/users", methods=["GET"])
+@login_required
+def api_list_users():
+    """API - List all users (JSON)."""
+    users = list_users(conn)
+    return jsonify([dict(u) for u in users])
+
+
+@app.route("/api/documents", methods=["GET"])
+@login_required
+def api_list_documents():
+    """API - List all documents (JSON)."""
+    docs = list_documents(conn)
+    return jsonify([dict(d) for d in docs])
+
+
+@app.route("/api/documents/<file_name>", methods=["GET"])
+@login_required
+def api_get_document(file_name):
+    """API - Get document by file_name (JSON)."""
+    doc = get_document(conn, file_name)
+    if not doc:
+        return jsonify({"error": "Document not found"}), 404
+    return jsonify(dict(doc))
+
+
+@app.route("/api/documents/<file_name>/status", methods=["POST"])
+@login_required
+def api_update_status(file_name):
+    """API - Update document status."""
+    data = request.get_json()
+    status = data.get("status", "").strip()
+    completed_at = data.get("completed_at")
+
+    try:
+        add_process_tracking(conn, file_name, status, completed_at)
+        return jsonify({"success": True, "message": "Status updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/status-summary", methods=["GET"])
+@login_required
+def api_status_summary():
+    """API - Get status summary (JSON)."""
+    counts = list_status_counts(conn)
+    return jsonify([dict(c) for c in counts])
+
+
+# ==================== Error Handlers ====================
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors."""
+    return render_template("404.html"), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors."""
+    return render_template("500.html"), 500
+
+
+# ==================== Main ====================
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
