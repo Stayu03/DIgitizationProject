@@ -1,8 +1,31 @@
 <aside class="sidebar">
   <div class="menu-title">MAIN MENU</div>
   <nav class="menu">
-    <a class="{% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
-    <a class="{% if request.endpoint == 'documents_list' %}active{% endif %}" href="{{ url_for('documents_list') }}">Document List</a>
-    <a class="{% if request.endpoint == 'add_document_page' %}active{% endif %}" href="{{ url_for('add_document_page') }}">Add Document</a>
+    <a class="{% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      <span>Dashboard</span>
+    </a>
+
+    <a class="{% if request.endpoint == 'documents_list' %}active{% endif %}" href="{{ url_for('documents_list') }}">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm0 2.5L17.5 8H14V4.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z"/></svg>
+      <span>เอกสารทั้งหมด</span>
+    </a>
+
+    {% if session.get('user_role') == 'Admin' %}
+    <a class="{% if request.endpoint == 'system_management_page' %}active{% endif %}" href="{{ url_for('system_management_page') }}">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.49.49 0 0 0 13.9 2h-3.8a.49.49 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.82 14.2a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.31.6.22l2.39-.96c.51.4 1.05.71 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>
+      <span>จัดการข้อมูลในระบบ</span>
+    </a>
+
+    <a class="{% if request.endpoint == 'user_management_page' %}active{% endif %}" href="{{ url_for('user_management_page') }}">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.57 2.99-3.5S17.66 4 16 4s-3 1.57-3 3.5S14.34 11 16 11zm-8 0c1.66 0 2.99-1.57 2.99-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11zm0 2c-2.33 0-7 1.17-7 3.5V20h14v-3.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.98 1.97 3.45V20h6v-3.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      <span>จัดการบัญชีผู้ใช้งาน</span>
+    </a>
+    {% endif %}
+
+    <a class="{% if request.endpoint == 'settings_page' %}active{% endif %}" href="{{ url_for('settings_page') }}">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98L14.5 2.5a.5.5 0 0 0-.49-.42h-4a.5.5 0 0 0-.49.42L9.13 5.07c-.61.24-1.17.56-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98L2.46 14.63a.5.5 0 0 0-.12.64l2 3.46c.13.22.39.31.61.22l2.49-1c.52.42 1.08.74 1.69.98l.39 2.57c.04.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.39-2.57c.61-.24 1.17-.56 1.69-.98l2.49 1c.22.09.48 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>
+      <span>การตั้งค่า</span>
+    </a>
   </nav>
 </aside>

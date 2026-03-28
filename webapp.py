@@ -33,6 +33,18 @@ def login_required(f):
     return decorated_function
 
 
+def admin_required(f):
+    """Decorator to allow access for admin users only."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_email" not in session:
+            return redirect(url_for("login"))
+        if session.get("user_role") != "Admin":
+            return "Forbidden", 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 # ==================== Authentication Routes ====================
 
 @app.route("/", methods=["GET"])
@@ -148,6 +160,30 @@ def view_document(file_name):
     if not doc:
         return "Document not found", 404
     return render_template("view_document.html", document=doc)
+
+
+# ==================== Management Routes ====================
+
+@app.route("/settings", methods=["GET"])
+@login_required
+def settings_page():
+    """Display settings page for all users."""
+    return render_template("setting.html")
+
+
+@app.route("/system-management", methods=["GET"])
+@admin_required
+def system_management_page():
+    """Display system management page for admins."""
+    return render_template("system_management.html")
+
+
+@app.route("/user-management", methods=["GET"])
+@admin_required
+def user_management_page():
+    """Display user management page for admins."""
+    users = list_users(conn)
+    return render_template("user_management.html", users=users)
 
 
 # ==================== API Routes ====================

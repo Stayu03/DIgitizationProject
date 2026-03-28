@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}จัดการบัญชีผู้ใช้งาน{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1 class="page-title">จัดการบัญชีผู้ใช้งาน</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.user_name }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.role }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="3">ไม่มีผู้ใช้งาน</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

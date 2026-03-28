@@ -131,16 +131,18 @@
     }
 
     .sidebar {
-      background: var(--gray-700);
-      color: var(--white);
+      background: #f8e1ea;
+      color: var(--gray-900);
       padding: 20px 14px;
+      border-right: 1px solid #efc8d8;
     }
 
     .menu-title {
       margin: 6px 10px 14px;
       font-size: 14px;
       letter-spacing: 0.7px;
-      opacity: 0.8;
+      color: #9d5d79;
+      opacity: 0.9;
     }
 
     .menu {
@@ -150,19 +152,29 @@
     }
 
     .menu a {
-      color: var(--white);
+      color: #4b2f3b;
       text-decoration: none;
       padding: 10px 12px;
       border-radius: 8px;
       font-size: 16px;
       font-weight: 400;
       opacity: 0.95;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .menu a.active,
     .menu a:hover {
-      background: rgba(255, 255, 255, 0.18);
+      background: rgba(222, 92, 142, 0.16);
       opacity: 1;
+    }
+
+    .menu-icon {
+      width: 18px;
+      height: 18px;
+      fill: #de5c8e;
+      flex: 0 0 auto;
     }
 
     .content {
