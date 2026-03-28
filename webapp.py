@@ -1,6 +1,9 @@
 """Flask application for the Digitization Process Management System."""
 
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+import csv
+from io import StringIO
+
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
 import sqlite3
 from functools import wraps
 from database import (
@@ -111,7 +114,62 @@ def dashboard():
 def documents_list():
     """Display all documents."""
     docs = list_documents(conn)
-    return render_template("documents_list.html", documents=docs)
+
+    # Query controls for page-level search/filter/sort.
+    query = request.args.get("q", "").strip().lower()
+    status_filter = request.args.get("status", "").strip()
+    sort_order = request.args.get("sort", "new")
+
+    if query:
+        docs = [
+            d for d in docs
+            if query in (d.get("title") or "").lower() or query in (d.get("file_name") or "").lower()
+        ]
+
+    if status_filter:
+        docs = [d for d in docs if (d.get("current_status") or "") == status_filter]
+
+    docs = sorted(
+        docs,
+        key=lambda d: ((d.get("last_completed_at") or d.get("created_at") or ""), d.get("file_name") or ""),
+        reverse=(sort_order != "old"),
+    )
+
+    status_options = sorted({(d.get("current_status") or "") for d in list_documents(conn) if d.get("current_status")})
+
+    return render_template(
+        "documents_list.html",
+        documents=docs,
+        q=query,
+        status_filter=status_filter,
+        sort_order=sort_order,
+        status_options=status_options,
+    )
+
+
+@app.route("/reports/download", methods=["GET"])
+@login_required
+def download_report():
+    """Download document report as CSV."""
+    docs = list_documents(conn)
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["No", "FileName", "Title", "LatestStatus", "LastUpdatedAt"])
+
+    for i, d in enumerate(docs, start=1):
+        writer.writerow([
+            i,
+            d.get("file_name", ""),
+            d.get("title", ""),
+            d.get("current_status", ""),
+            d.get("last_completed_at") or d.get("created_at") or "",
+        ])
+
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    response.headers["Content-Disposition"] = "attachment; filename=document_report.csv"
+    return response
 
 
 @app.route("/documents/add", methods=["GET", "POST"])
