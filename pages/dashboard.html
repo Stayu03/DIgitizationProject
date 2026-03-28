@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1 class="page-title">Dashboard</h1>
+  <p class="muted">สวัสดี {{ user_name or session.get('user_name') }}</p>
+
+  <h3>สถานะเอกสาร</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in status_counts %}
+      <tr>
+        <td>{{ item.status }}</td>
+        <td>{{ item.total }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="2">ยังไม่มีข้อมูล</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3 style="margin-top: 20px;">รายการล่าสุด</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>File Name</th>
+        <th>Title</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in recent_docs %}
+      <tr>
+        <td><a href="{{ url_for('view_document', file_name=doc.file_name) }}">{{ doc.file_name }}</a></td>
+        <td>{{ doc.title }}</td>
+        <td>{{ doc.current_status }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="3">ยังไม่มีรายการ</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

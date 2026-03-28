@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Document Detail{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1 class="page-title">Document Detail</h1>
+
+  <table>
+    <tbody>
+      <tr><th>File Name</th><td>{{ document.file_name }}</td></tr>
+      <tr><th>Title</th><td>{{ document.title }}</td></tr>
+      <tr><th>User</th><td>{{ document.user_name }}</td></tr>
+      <tr><th>BIB</th><td>{{ document.bib }}</td></tr>
+      <tr><th>Call Number</th><td>{{ document.call_number }}</td></tr>
+      <tr><th>Collection</th><td>{{ document.collection }}</td></tr>
+      <tr><th>Publish Date</th><td>{{ document.publish_date }}</td></tr>
+      <tr><th>File Path</th><td>{{ document.file_path }}</td></tr>
+      <tr><th>Created At</th><td>{{ document.created_at }}</td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top: 16px;">
+    <a class="btn" href="{{ url_for('documents_list') }}">Back to List</a>
+  </p>
+</section>
+{% endblock %}

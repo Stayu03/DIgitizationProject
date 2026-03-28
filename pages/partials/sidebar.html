@@ -1,0 +1,8 @@
+<aside class="sidebar">
+  <div class="menu-title">MAIN MENU</div>
+  <nav class="menu">
+    <a class="{% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+    <a class="{% if request.endpoint == 'documents_list' %}active{% endif %}" href="{{ url_for('documents_list') }}">Document List</a>
+    <a class="{% if request.endpoint == 'add_document_page' %}active{% endif %}" href="{{ url_for('add_document_page') }}">Add Document</a>
+  </nav>
+</aside>

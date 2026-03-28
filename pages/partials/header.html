@@ -1,0 +1,19 @@
+<header class="app-header">
+  <div class="header-left">
+    <div class="brand">
+      <span class="brand-main">Digitization System</span>
+      <span class="brand-sub">for Chula Library</span>
+    </div>
+  </div>
+
+  <div class="header-center">{{ page_title or "Dashboard" }}</div>
+
+  <div class="header-user">
+    <div class="user-name-box">{{ session.get('user_name', 'User') }}</div>
+    <a class="logout-link" href="{{ url_for('logout') }}" title="Logout" aria-label="Logout">
+      <svg class="logout-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5v-2H5V5h5V3zm9.71 8.29-3-3-1.41 1.41L15.59 11H9v2h6.59l-1.29 1.29 1.41 1.41 3-3a1 1 0 0 0 0-1.41z"/>
+      </svg>
+    </a>
+  </div>
+</header>

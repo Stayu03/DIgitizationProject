@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Digitization System{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --pink: #de5c8e;
+      --gray-900: #2f3133;
+      --gray-700: #58595b;
+      --gray-100: #f4f5f7;
+      --white: #ffffff;
+      --line: #e2e4e8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 1024px;
+      font-family: "Kanit", sans-serif;
+      color: var(--gray-900);
+      background: linear-gradient(180deg, #fff7fb 0%, #f7f8fb 65%);
+    }
+
+    .app-header {
+      height: 84px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      background: var(--white);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-left {
+      width: 250px;
+      min-width: 250px;
+    }
+
+    .brand {
+      color: var(--pink);
+      font-weight: 600;
+      line-height: 1.1;
+      letter-spacing: 0.2px;
+    }
+
+    .brand-main {
+      display: block;
+      font-size: 20px;
+    }
+
+    .brand-sub {
+      display: block;
+      font-size: 12px;
+      color: #7d7f82;
+      margin-top: 2px;
+      font-weight: 400;
+    }
+
+    .header-center {
+      flex: 1;
+      text-align: center;
+      font-size: 22px;
+      color: #404245;
+      font-weight: 500;
+    }
+
+    .header-user {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 250px;
+      min-width: 250px;
+      gap: 10px;
+    }
+
+    .user-name-box {
+      background: var(--gray-700);
+      color: var(--white);
+      font-size: 16px;
+      line-height: 1;
+      padding: 10px 14px;
+      border-radius: 999px;
+      min-width: 128px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .logout-link {
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--white);
+      color: var(--pink);
+      text-decoration: none;
+      border: 1px solid #f0d2de;
+      box-shadow: 0 3px 10px rgba(222, 92, 142, 0.18);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .logout-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(222, 92, 142, 0.25);
+    }
+
+    .logout-icon {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      min-height: calc(100vh - 72px);
+    }
+
+    .sidebar {
+      background: var(--gray-700);
+      color: var(--white);
+      padding: 20px 14px;
+    }
+
+    .menu-title {
+      margin: 6px 10px 14px;
+      font-size: 14px;
+      letter-spacing: 0.7px;
+      opacity: 0.8;
+    }
+
+    .menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .menu a {
+      color: var(--white);
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 400;
+      opacity: 0.95;
+    }
+
+    .menu a.active,
+    .menu a:hover {
+      background: rgba(255, 255, 255, 0.18);
+      opacity: 1;
+    }
+
+    .content {
+      padding: 26px;
+    }
+
+    .card {
+      background: var(--white);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .page-title {
+      margin: 0 0 14px;
+      color: var(--gray-900);
+      font-size: 28px;
+      font-weight: 500;
+    }
+
+    .btn {
+      display: inline-block;
+      background: var(--pink);
+      color: var(--white);
+      text-decoration: none;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: "Kanit", sans-serif;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    input,
+    select {
+      font-family: "Kanit", sans-serif;
+      font-size: 15px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #cfd4db;
+      width: 100%;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 10px 8px;
+      font-size: 15px;
+    }
+
+    th {
+      color: var(--gray-700);
+      font-weight: 500;
+    }
+
+    .muted {
+      color: #7a7e84;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+  {% set page_title = self.title()|striptags|trim %}
+  {% include "partials/header.html" %}
+  <div class="layout">
+    {% include "partials/sidebar.html" %}
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

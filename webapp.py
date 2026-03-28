@@ -71,23 +71,8 @@ def logout():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    """User registration."""
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        user_name = request.form.get("user_name", "").strip()
-        password = request.form.get("password", "")
-        role = request.form.get("role", "Staff")
-
-        try:
-            add_user(conn, email, user_name, password, role, "")
-            return redirect(url_for("login"))
-        except sqlite3.IntegrityError as e:
-            error_msg = "Email or user_name already exists" if "UNIQUE" in str(e) else str(e)
-            return render_template("register.html", error=error_msg)
-        except ValueError as e:
-            return render_template("register.html", error=str(e))
-
-    return render_template("register.html")
+    """Public registration is disabled. Accounts are created by admin only."""
+    return "Registration is disabled. Please contact admin.", 403
 
 
 # ==================== Dashboard Routes ====================

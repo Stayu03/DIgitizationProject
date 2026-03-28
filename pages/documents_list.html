@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Documents{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1 class="page-title">Document List</h1>
+  <p><a class="btn" href="{{ url_for('add_document_page') }}">+ Add Document</a></p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>File Name</th>
+        <th>Title</th>
+        <th>User</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in documents %}
+      <tr>
+        <td><a href="{{ url_for('view_document', file_name=doc.file_name) }}">{{ doc.file_name }}</a></td>
+        <td>{{ doc.title }}</td>
+        <td>{{ doc.user_name }}</td>
+        <td>{{ doc.current_status }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4">ยังไม่มีข้อมูล</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
