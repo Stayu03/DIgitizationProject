@@ -15,7 +15,8 @@ from database import (
     list_status_counts,
 )
 
-app = Flask(__name__)
+# Use pages/ as Jinja template folder to match current project structure.
+app = Flask(__name__, template_folder="pages")
 app.secret_key = "your-secret-key-change-in-production"
 
 # Initialize database on startup
