@@ -15,6 +15,7 @@ from database import (
     list_documents,
     get_document,
     add_process_tracking,
+    list_document_updates,
     list_status_counts,
 )
 
@@ -217,7 +218,36 @@ def view_document(file_name):
     doc = get_document(conn, file_name)
     if not doc:
         return "Document not found", 404
-    return render_template("view_document.html", document=doc)
+
+    updates = list_document_updates(conn, file_name)
+
+    q = request.args.get("q", "").strip().lower()
+    status_filter = request.args.get("status", "").strip()
+    sort_order = request.args.get("sort", "new")
+
+    if q:
+        updates = [
+            u for u in updates
+            if q in (u.get("status") or "").lower() or q in (u.get("user_name") or "").lower()
+        ]
+
+    if status_filter:
+        updates = [u for u in updates if (u.get("status") or "") == status_filter]
+
+    updates = sorted(
+        updates,
+        key=lambda u: ((u.get("completed_at") or u.get("created_at") or ""), u.get("transaction_id") or 0),
+        reverse=(sort_order != "old"),
+    )
+
+    return render_template(
+        "view_document.html",
+        document=doc,
+        updates=updates,
+        q=q,
+        status_filter=status_filter,
+        sort_order=sort_order,
+    )
 
 
 # ==================== Management Routes ====================

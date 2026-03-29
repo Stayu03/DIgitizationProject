@@ -1,27 +1,326 @@
 {% extends "base.html" %}
 
-{% block title %}Document Detail{% endblock %}
+{% block title %}{{ document.title or 'Document Detail' }}{% endblock %}
 
 {% block content %}
 <section class="card">
-  <h1 class="page-title">Document Detail</h1>
+  <style>
+    .detail-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
 
-  <table>
+    .update-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #24a0ed;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .update-icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .doc-title-box {
+      background: #f8e1ea;
+      color: #de5c8e;
+      font-size: 24px;
+      font-weight: 500;
+      padding: 10px 16px;
+      border-radius: 10px;
+      max-width: 62%;
+      text-align: left;
+    }
+
+    .detail-grid {
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    .detail-label {
+      font-size: 20px;
+      font-weight: 500;
+      color: #111;
+      margin: 8px 0 12px;
+    }
+
+    .detail-box {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 760px;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      color: #000;
+      font-size: 15px;
+    }
+
+    .detail-topic {
+      font-weight: 500;
+      color: #111;
+    }
+
+    .detail-value-box {
+      background: #f8e1ea;
+      border-radius: 10px;
+      padding: 8px 12px;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: fit-content;
+      max-width: 100%;
+      white-space: nowrap;
+    }
+
+    .tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tool-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 44px;
+      border-radius: 10px;
+      background: #e9e9e9;
+      padding: 0 12px;
+      white-space: nowrap;
+    }
+
+    .tool-wrap.search-wrap {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .tool-wrap.compact-wrap {
+      flex: 0 0 auto;
+    }
+
+    .tool-input,
+    .tool-select {
+      width: 100%;
+      height: 44px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #000;
+      font-size: 16px;
+      padding: 0;
+      font-family: "Kanit", sans-serif;
+      appearance: none;
+    }
+
+    .tool-select.compact-select {
+      width: auto;
+      min-width: 0;
+      max-width: 100%;
+      padding-right: 4px;
+      flex: 0 0 auto;
+    }
+
+    .tool-icon {
+      width: 18px;
+      height: 18px;
+      fill: #5c5c5c;
+      flex: 0 0 auto;
+    }
+
+    .updates-title {
+      font-size: 20px;
+      font-weight: 500;
+      color: #000;
+      margin: 4px 0 8px;
+    }
+
+    .updates-divider {
+      border: 0;
+      border-top: 1px solid #d9dce1;
+      margin: 0 0 10px;
+    }
+
+    .updates-table thead th {
+      color: #58595b;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .updates-table td {
+      font-size: 14px;
+      color: #2f3133;
+      vertical-align: top;
+    }
+
+    .col-no {
+      width: 90px;
+      text-align: center;
+    }
+
+    .date-line {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .time-line {
+      font-size: 13px;
+      color: #6a6f75;
+      margin-top: 4px;
+      line-height: 1.2;
+    }
+  </style>
+
+  <div class="detail-top">
+    <div class="doc-title-box">{{ document.title or '-' }}</div>
+    <a class="update-btn" href="#">
+      <svg class="update-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75l11-11-3.75-3.75-11 11zM20.71 7.04a1.001 1.001 0 0 0 0-1.42l-2.34-2.34a1.001 1.001 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
+      <span>อัปเดตรายละเอียดข้อมูล/สถานะ</span>
+    </a>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-label">รายละเอียดของเอกสาร</div>
+    <div class="detail-box">
+      <div class="detail-item">
+        <div class="detail-topic">รหัสเอกสาร (FileName)</div>
+        <div class="detail-value-box">{{ document.file_name or '-' }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-topic">Bib# (Biliographic Record)</div>
+        <div class="detail-value-box">{{ document.bib or '-' }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-topic">เลขหนังสือ (CallNo)</div>
+        <div class="detail-value-box">{{ document.call_number or '-' }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-topic">คอลเลกชัน (Collection)</div>
+        <div class="detail-value-box">{{ document.collection or '-' }}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-topic">ปีที่พิมพ์ (Published Date)</div>
+        <div class="detail-value-box">{{ document.publish_date or '-' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <form method="get" action="{{ url_for('view_document', file_name=document.file_name) }}" class="tools">
+    <div class="tool-wrap search-wrap">
+      <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 14 15.5l.27.28v.79L20 21.5 21.5 20l-6-6zM10 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+      <input class="tool-input" type="text" name="q" value="{{ q or '' }}" placeholder="ค้นหาจากชื่อผู้รับผิดชอบ หรือสถานะ">
+    </div>
+
+    <div class="tool-wrap compact-wrap">
+      <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"/></svg>
+      <select class="tool-select compact-select" name="status" onchange="this.form.submit()">
+        <option value="" {% if not status_filter %}selected{% endif %}>สถานะทั้งหมด</option>
+        {% for status in [
+          'คัดเลือกเอกสาร',
+          'สแกนเอกสาร',
+          'ตรวจไฟล์ภาพสแกน',
+          'ตกแต่งภาพสแกน',
+          'สร้างและฝัง Metadata ใน PDF',
+          'จัดเก็บ/สำรองไฟล์',
+          'นำไฟล์เอกสารเข้าระบบคลังสารสนเทศดิจิทัล Metadata ใน PDF'
+        ] %}
+        <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="tool-wrap compact-wrap">
+      <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h10v2H7V6zm2 5h8v2H9v-2zm3 5h5v2h-5v-2zM4 6l2.5-2.5L9 6H7v12H6V6H4z"/></svg>
+      <select class="tool-select compact-select" name="sort" onchange="this.form.submit()">
+        <option value="new" {% if sort_order != 'old' %}selected{% endif %}>เรียงลำดับจากใหม่-เก่า</option>
+        <option value="old" {% if sort_order == 'old' %}selected{% endif %}>เรียงลำดับจากเก่า-ใหม่</option>
+      </select>
+    </div>
+  </form>
+
+  <script>
+    (function () {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+
+      function fitSelectWidth(selectEl) {
+        var selectedText = selectEl.options[selectEl.selectedIndex]?.text || "";
+        var computed = window.getComputedStyle(selectEl);
+        var font = computed.font || (computed.fontSize + " " + computed.fontFamily);
+        ctx.font = font;
+        var textWidth = ctx.measureText(selectedText).width;
+
+        // icon+gaps are in wrapper, keep select tightly wrapped to text only.
+        var widthPx = Math.max(58, Math.ceil(textWidth + 8));
+        selectEl.style.width = widthPx + "px";
+      }
+
+      var autoSelects = document.querySelectorAll('.tool-select.compact-select');
+      autoSelects.forEach(function (el) {
+        fitSelectWidth(el);
+        el.addEventListener('change', function () {
+          fitSelectWidth(el);
+        });
+      });
+    })();
+  </script>
+
+  <h2 class="updates-title">รายการอัปเดตทั้งหมด</h2>
+  <hr class="updates-divider">
+
+  <table class="updates-table">
+    <thead>
+      <tr>
+        <th class="col-no">ลำดับที่</th>
+        <th>สถานะที่อัปเดต</th>
+        <th>ชื่อผู้รับผิดชอบ</th>
+        <th>วันที่และเวลาอัปเดตล่าสุด</th>
+      </tr>
+    </thead>
     <tbody>
-      <tr><th>File Name</th><td>{{ document.file_name }}</td></tr>
-      <tr><th>Title</th><td>{{ document.title }}</td></tr>
-      <tr><th>User</th><td>{{ document.user_name }}</td></tr>
-      <tr><th>BIB</th><td>{{ document.bib }}</td></tr>
-      <tr><th>Call Number</th><td>{{ document.call_number }}</td></tr>
-      <tr><th>Collection</th><td>{{ document.collection }}</td></tr>
-      <tr><th>Publish Date</th><td>{{ document.publish_date }}</td></tr>
-      <tr><th>File Path</th><td>{{ document.file_path }}</td></tr>
-      <tr><th>Created At</th><td>{{ document.created_at }}</td></tr>
+      {% for item in updates %}
+      <tr>
+        <td class="col-no">{{ loop.index }}</td>
+        <td>{{ item.status or '-' }}</td>
+        <td>{{ item.user_name or '-' }}</td>
+        <td>
+          {% set dt = (item.completed_at or item.created_at or '-')|replace('T', ' ') %}
+          {% if dt != '-' %}
+            {% set dt_parts = dt.split(' ') %}
+            <div class="date-line">{{ dt_parts[0] }}</div>
+            <div class="time-line">{{ dt_parts[1] if dt_parts|length > 1 else '-' }}</div>
+          {% else %}
+            <div class="date-line">-</div>
+            <div class="time-line">-</div>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="4">ยังไม่มีข้อมูลอัปเดต</td>
+      </tr>
+      {% endfor %}
     </tbody>
   </table>
-
-  <p style="margin-top: 16px;">
-    <a class="btn" href="{{ url_for('documents_list') }}">Back to List</a>
-  </p>
 </section>
 {% endblock %}

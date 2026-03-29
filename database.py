@@ -311,6 +311,27 @@ def add_process_tracking(
     conn.commit()
 
 
+def list_document_updates(conn: sqlite3.Connection, file_name: str) -> list[dict[str, Any]]:
+    """List all update transactions for a document with responsible user."""
+    rows = conn.execute(
+        """
+        SELECT
+            p.transaction_id,
+            p.status,
+            p.completed_at,
+            d.user_name,
+            d.created_at
+        FROM process_tracking p
+        INNER JOIN documents d
+            ON d.file_name = p.file_name
+        WHERE p.file_name = ?
+        ORDER BY p.transaction_id DESC
+        """,
+        (file_name,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def list_status_counts(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """Return summary counts based on latest status of each document."""
     rows = conn.execute(
