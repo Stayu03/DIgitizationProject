@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}{{ breadcrumb }}{% endblock %}
+
+{% block content %}
+<section class="card process-card">
+	<style>
+		.process-layout {
+			display: grid;
+			grid-template-columns: minmax(0, 2.25fr) minmax(320px, 1fr);
+			gap: 18px;
+			align-items: start;
+		}
+
+		.topic-wrap {
+			margin-bottom: 8px;
+		}
+
+		.topic-label {
+			font-size: 28px;
+			font-weight: 500;
+			color: #1e1f21;
+			line-height: 1.2;
+		}
+
+		.topic-title {
+			display: inline-block;
+			margin-left: 6px;
+			background: #f8e1ea;
+			color: #de5c8e;
+			padding: 2px 10px;
+			border-radius: 10px;
+			font-weight: 600;
+		}
+
+		.timeline-scroll {
+			overflow-x: auto;
+			padding-bottom: 6px;
+		}
+
+		.timeline {
+			position: relative;
+			min-width: 1320px;
+			padding: 20px 10px;
+			height: 276px;
+		}
+
+		.timeline-line {
+			position: absolute;
+			left: 22px;
+			right: 22px;
+			top: 138px;
+			height: 4px;
+			background: #de5c8e;
+			border-radius: 999px;
+		}
+
+		.timeline-start,
+		.timeline-end {
+			position: absolute;
+			top: 114px;
+			font-size: 16px;
+			font-weight: 500;
+			color: #de5c8e;
+			background: #fff;
+			padding: 0 4px;
+		}
+
+		.timeline-start {
+			left: 0;
+		}
+
+		.timeline-end {
+			right: 0;
+		}
+
+		.timeline-steps {
+			position: relative;
+			display: flex;
+			justify-content: space-between;
+			gap: 10px;
+			margin: 0 44px;
+			height: 100%;
+		}
+
+		.timeline-step {
+			position: relative;
+			flex: 1 1 0;
+			min-width: 158px;
+		}
+
+		.timeline-dot {
+			position: absolute;
+			left: 50%;
+			top: 138px;
+			transform: translate(-50%, -50%);
+			width: 12px;
+			height: 12px;
+			border-radius: 999px;
+			background: #de5c8e;
+			border: 2px solid #fff;
+			box-shadow: 0 0 0 1px #de5c8e;
+		}
+
+		.status-box {
+			position: absolute;
+			left: 50%;
+			transform: translateX(-50%);
+			width: min(158px, 100%);
+			min-height: 66px;
+			border-radius: 10px;
+			border: 1px solid #000;
+			background: #fff;
+			color: #000;
+			font-size: 16px;
+			font-weight: 500;
+			line-height: 1.25;
+			text-align: center;
+			padding: 8px 8px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.timeline-step.is-top .status-box {
+			top: 54px;
+		}
+
+		.timeline-step.is-bottom .status-box {
+			top: 154px;
+		}
+
+		.status-box.is-past {
+			background: #000;
+			color: #fff;
+			border-color: #000;
+		}
+
+		.status-box.is-current {
+			background: #de5c8e;
+			color: #fff;
+			border-color: #de5c8e;
+		}
+
+		.meta-wrap {
+			position: absolute;
+			left: 50%;
+			transform: translateX(-50%);
+			width: min(170px, 100%);
+			display: flex;
+			flex-direction: column;
+			gap: 5px;
+		}
+
+		.timeline-step.is-top .meta-wrap {
+			top: 0;
+		}
+
+		.timeline-step.is-bottom .meta-wrap {
+			top: 224px;
+		}
+
+		.meta-row {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 12px;
+			color: #2f3133;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.meta-badge {
+			flex: 0 0 auto;
+			border-radius: 8px;
+			padding: 2px 8px;
+			font-size: 11px;
+			line-height: 1.1;
+			font-weight: 500;
+		}
+
+		.meta-badge.done {
+			background: #000;
+			color: #fff;
+		}
+
+		.meta-badge.owner {
+			background: #f8e1ea;
+			color: #b64f78;
+		}
+
+		.meta-text {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.process-form-box {
+			border: 1px solid #eceff3;
+			background: #fbfcff;
+			border-radius: 12px;
+			padding: 14px;
+		}
+
+		.process-form-title {
+			margin: 0 0 10px;
+			font-size: 20px;
+			font-weight: 500;
+			color: #222325;
+		}
+
+		.process-stack {
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+		}
+
+		.process-stack label {
+			font-size: 14px;
+			color: #3d4045;
+			margin-bottom: -2px;
+		}
+
+		.muted-note {
+			font-size: 13px;
+			color: #6f7378;
+			margin: 2px 0 6px;
+		}
+
+		.save-btn {
+			margin-top: 8px;
+			width: 100%;
+			height: 44px;
+			border: 0;
+			border-radius: 10px;
+			background: #de5c8e;
+			color: #fff;
+			font-size: 16px;
+			font-family: "Kanit", sans-serif;
+			cursor: pointer;
+		}
+	</style>
+
+	<div class="process-layout">
+		<div>
+			<div class="topic-wrap">
+				<div class="topic-label">
+					การอัปเดตล่าสุดของ
+					<span class="topic-title">{{ document.title or '-' }}</span>
+				</div>
+			</div>
+
+			<div class="timeline-scroll">
+				<div class="timeline">
+					<div class="timeline-line"></div>
+					<div class="timeline-start">เริ่ม</div>
+					<div class="timeline-end">จบ</div>
+
+					<div class="timeline-steps">
+						{% for item in timeline %}
+						<div class="timeline-step {% if item.is_top %}is-top{% else %}is-bottom{% endif %}">
+							{% set update = item.update %}
+							<div class="meta-wrap">
+								<div class="meta-row">
+									<span class="meta-badge done">เสร็จ</span>
+									{% if update and update.completed_at %}
+									<span class="meta-text">{{ update.completed_at|replace('T', ' ') }}</span>
+									{% else %}
+									<span class="meta-text">-</span>
+									{% endif %}
+								</div>
+								<div class="meta-row">
+									<span class="meta-badge owner">ผู้รับผิดชอบ</span>
+									<span class="meta-text">{{ (update.user_name if update else '-') or '-' }}</span>
+								</div>
+							</div>
+
+							<div class="status-box {% if item.state == 'past' %}is-past{% elif item.state == 'current' %}is-current{% endif %}">
+								{{ item.index }}. {{ item.status }}
+							</div>
+							<div class="timeline-dot" aria-hidden="true"></div>
+						</div>
+						{% endfor %}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="process-form-box">
+			<h2 class="process-form-title">อัปเดตข้อมูล</h2>
+			<form method="post" action="{{ url_for('process_tracking_page', file_name=document.file_name, source='update') }}" class="process-stack">
+				<label for="status">สถานะปัจจุบัน</label>
+				<select id="status" name="status" {% if not can_edit_detail %}required{% endif %}>
+					{% if can_edit_detail %}
+					<option value="">ไม่เปลี่ยนสถานะ</option>
+					{% endif %}
+					{% for status in process_statuses %}
+					<option value="{{ status }}">{{ status }}</option>
+					{% endfor %}
+				</select>
+
+				<label for="completed_at">วันที่/เวลา (ไม่กรอก = ตอนนี้)</label>
+				<input id="completed_at" name="completed_at" type="datetime-local">
+
+				<label>
+					<input type="checkbox" name="update_now" value="1" style="width:auto; margin-right: 8px;">
+					ใช้เวลาปัจจุบัน
+				</label>
+
+				{% if can_edit_detail %}
+				<div class="muted-note">Admin สามารถแก้ไขรายละเอียดเอกสารและอัปเดตสถานะได้</div>
+
+				<label for="title">ชื่อเรื่อง</label>
+				<input id="title" name="title" value="{{ document.title or '' }}">
+
+				<label for="user_name">ผู้รับผิดชอบหลัก</label>
+				<select id="user_name" name="user_name">
+					{% for u in users %}
+					<option value="{{ u.user_name }}" {% if document.user_name == u.user_name %}selected{% endif %}>{{ u.user_name }}</option>
+					{% endfor %}
+				</select>
+
+				<label for="bib">Bib#</label>
+				<input id="bib" name="bib" value="{{ document.bib or '' }}">
+
+				<label for="call_number">เลขหนังสือ (CallNo)</label>
+				<input id="call_number" name="call_number" value="{{ document.call_number or '' }}">
+
+				<label for="collection">คอลเลกชัน</label>
+				<input id="collection" name="collection" value="{{ document.collection or '' }}">
+
+				<label for="publish_date">ปีที่พิมพ์</label>
+				<input id="publish_date" name="publish_date" type="number" value="{{ document.publish_date or '' }}">
+
+				<label for="file_path">ที่อยู่ไฟล์</label>
+				<input id="file_path" name="file_path" value="{{ document.file_path or '' }}">
+				{% else %}
+				<div class="muted-note">Staff อัปเดตได้เฉพาะสถานะเท่านั้น</div>
+				{% endif %}
+
+				<button class="save-btn" type="submit">บันทึกการอัปเดต</button>
+			</form>
+		</div>
+	</div>
+</section>
+{% endblock %}

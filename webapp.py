@@ -2,6 +2,7 @@
 
 import csv
 from io import StringIO
+from datetime import datetime
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response
 import sqlite3
@@ -15,6 +16,7 @@ from database import (
     list_documents,
     get_document,
     add_process_tracking,
+    update_document_details,
     list_document_updates,
     list_status_counts,
 )
@@ -22,6 +24,16 @@ from database import (
 # Use pages/ as Jinja template folder to match current project structure.
 app = Flask(__name__, template_folder="pages")
 app.secret_key = "your-secret-key-change-in-production"
+
+PROCESS_STATUSES = [
+    "คัดเลือกเอกสาร",
+    "สแกนเอกสาร",
+    "ตรวจไฟล์ภาพสแกน",
+    "ตกแต่งภาพสแกน",
+    "สร้างและฝัง Metadata ใน PDF",
+    "จัดเก็บ/สำรองไฟล์",
+    "นำไฟล์เอกสารเข้าระบบคลังสารสนเทศดิจิทัล Metadata ใน PDF",
+]
 
 # Initialize database on startup
 conn = run_startup()
@@ -174,7 +186,7 @@ def download_report():
 
 
 @app.route("/documents/add", methods=["GET", "POST"])
-@login_required
+@admin_required
 def add_document_page():
     """Add a new document."""
     if request.method == "POST":
@@ -201,7 +213,7 @@ def add_document_page():
                 publish_date,
                 file_path,
             )
-            return redirect(url_for("documents_list"))
+            return redirect(url_for("process_tracking_page", file_name=file_name, source="new"))
         except sqlite3.IntegrityError as e:
             error_msg = "Document with this file_name already exists"
             users = list_users(conn)
@@ -244,9 +256,108 @@ def view_document(file_name):
         "view_document.html",
         document=doc,
         updates=updates,
+        process_statuses=PROCESS_STATUSES,
         q=q,
         status_filter=status_filter,
         sort_order=sort_order,
+    )
+
+
+@app.route("/documents/<file_name>/process-tracking", methods=["GET", "POST"])
+@login_required
+def process_tracking_page(file_name):
+    """Display and update process tracking page for new/existing document workflows."""
+    doc = get_document(conn, file_name)
+    if not doc:
+        return "Document not found", 404
+
+    source = request.args.get("source", "update").strip().lower()
+    is_new_case = source == "new"
+
+    if is_new_case and session.get("user_role") != "Admin":
+        return "Forbidden", 403
+
+    if request.method == "POST":
+        selected_status = request.form.get("status", "").strip()
+        update_now = request.form.get("update_now") == "1"
+
+        if selected_status and selected_status in PROCESS_STATUSES:
+            completed_at = request.form.get("completed_at", "").strip() or None
+            if update_now or not completed_at:
+                completed_at = datetime.utcnow().replace(microsecond=0).isoformat()
+
+            add_process_tracking(
+                conn,
+                file_name,
+                selected_status,
+                completed_at,
+                session.get("user_name"),
+            )
+
+        if session.get("user_role") == "Admin":
+            publish_date_raw = request.form.get("publish_date", "").strip()
+            publish_date = int(publish_date_raw) if (publish_date_raw and publish_date_raw.isdigit()) else None
+            update_document_details(
+                conn,
+                file_name,
+                request.form.get("user_name", "").strip() or doc.get("user_name", ""),
+                request.form.get("bib", "").strip(),
+                request.form.get("call_number", "").strip(),
+                request.form.get("collection", "").strip(),
+                request.form.get("title", "").strip(),
+                publish_date,
+                request.form.get("file_path", "").strip(),
+            )
+
+        return redirect(url_for("process_tracking_page", file_name=file_name, source="update"))
+
+    updates = list_document_updates(conn, file_name)
+    updates_asc = sorted(updates, key=lambda u: u.get("transaction_id") or 0)
+
+    latest_status = None
+    latest_by_status = {}
+    for item in updates_asc:
+        status_name = (item.get("status") or "").strip()
+        if status_name in PROCESS_STATUSES:
+            latest_status = status_name
+            latest_by_status[status_name] = item
+
+    current_idx = PROCESS_STATUSES.index(latest_status) if latest_status in PROCESS_STATUSES else -1
+
+    timeline = []
+    for idx, status_name in enumerate(PROCESS_STATUSES):
+        if is_new_case:
+            state = "new"
+        elif current_idx >= 0 and idx < current_idx:
+            state = "past"
+        elif current_idx >= 0 and idx == current_idx:
+            state = "current"
+        else:
+            state = "future"
+
+        timeline.append(
+            {
+                "index": idx + 1,
+                "status": status_name,
+                "state": state,
+                "is_top": idx % 2 == 0,
+                "update": latest_by_status.get(status_name),
+            }
+        )
+
+    breadcrumb = "เอกสารทั้งหมด > เพิ่มเอกสารใหม่"
+    if not is_new_case:
+        breadcrumb = f"เอกสารทั้งหมด > {doc.get('title') or '-'} > อัปเดตรายละเอียดข้อมูล/สถานะ"
+
+    return render_template(
+        "process_tracking.html",
+        document=doc,
+        breadcrumb=breadcrumb,
+        is_new_case=is_new_case,
+        timeline=timeline,
+        process_statuses=PROCESS_STATUSES,
+        can_edit_detail=session.get("user_role") == "Admin",
+        users=list_users(conn) if session.get("user_role") == "Admin" else [],
     )
 
 
@@ -311,7 +422,7 @@ def api_update_status(file_name):
     completed_at = data.get("completed_at")
 
     try:
-        add_process_tracking(conn, file_name, status, completed_at)
+        add_process_tracking(conn, file_name, status, completed_at, session.get("user_name"))
         return jsonify({"success": True, "message": "Status updated"})
     except Exception as e:
         return jsonify({"error": str(e)}), 400

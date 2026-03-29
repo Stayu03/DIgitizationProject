@@ -16,6 +16,12 @@ def _iso_now() -> str:
     return datetime.utcnow().replace(microsecond=0).isoformat()
 
 
+def _tracking_has_updated_by(conn: sqlite3.Connection) -> bool:
+    """Check whether process_tracking has updated_by column."""
+    cols = [row["name"] for row in conn.execute("PRAGMA table_info(process_tracking)").fetchall()]
+    return "updated_by" in cols
+
+
 def hash_password(raw_password: str) -> str:
     """Hash raw password using SHA-256 for simple authentication flows."""
     return hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
@@ -64,10 +70,19 @@ def init_database(conn: sqlite3.Connection) -> None:
             file_name TEXT NOT NULL,
             status TEXT NOT NULL,
             completed_at TEXT,
+            updated_by TEXT,
             FOREIGN KEY (file_name) REFERENCES documents(file_name)
         );
         """
     )
+
+    tracking_cols = [row["name"] for row in conn.execute("PRAGMA table_info(process_tracking)").fetchall()]
+    if "updated_by" not in tracking_cols:
+        try:
+            conn.execute("ALTER TABLE process_tracking ADD COLUMN updated_by TEXT;")
+        except sqlite3.OperationalError:
+            # If another process locks schema during startup, keep app running.
+            pass
 
     doc_cols = [row["name"] for row in conn.execute("PRAGMA table_info(documents)").fetchall()]
     needs_migration = ("name" in doc_cols) or ("user_name" not in doc_cols) or ("title" not in doc_cols)
@@ -226,13 +241,22 @@ def add_document(
         ),
     )
 
-    conn.execute(
-        """
-        INSERT INTO process_tracking (file_name, status, completed_at)
-        VALUES (?, ?, ?)
-        """,
-        (file_name.strip(), "Pending", None),
-    )
+    if _tracking_has_updated_by(conn):
+        conn.execute(
+            """
+            INSERT INTO process_tracking (file_name, status, completed_at, updated_by)
+            VALUES (?, ?, ?, ?)
+            """,
+            (file_name.strip(), "คัดเลือกเอกสาร", created_at_value, user_name.strip()),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO process_tracking (file_name, status, completed_at)
+            VALUES (?, ?, ?)
+            """,
+            (file_name.strip(), "คัดเลือกเอกสาร", created_at_value),
+        )
 
     conn.commit()
 
@@ -299,36 +323,102 @@ def add_process_tracking(
     file_name: str,
     status: str,
     completed_at: Optional[str] = None,
+    updated_by: Optional[str] = None,
 ) -> None:
     """Append a status transaction for the given document."""
+    if _tracking_has_updated_by(conn):
+        conn.execute(
+            """
+            INSERT INTO process_tracking (file_name, status, completed_at, updated_by)
+            VALUES (?, ?, ?, ?)
+            """,
+            (file_name.strip(), status.strip(), completed_at, (updated_by or "").strip() or None),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO process_tracking (file_name, status, completed_at)
+            VALUES (?, ?, ?)
+            """,
+            (file_name.strip(), status.strip(), completed_at),
+        )
+    conn.commit()
+
+
+def update_document_details(
+    conn: sqlite3.Connection,
+    file_name: str,
+    user_name: str,
+    bib: str,
+    call_number: str,
+    collection: str,
+    title: str,
+    publish_date: Optional[int],
+    file_path: str,
+) -> None:
+    """Update editable document details for admin workflows."""
     conn.execute(
         """
-        INSERT INTO process_tracking (file_name, status, completed_at)
-        VALUES (?, ?, ?)
+        UPDATE documents
+        SET user_name = ?,
+            bib = ?,
+            call_number = ?,
+            collection = ?,
+            title = ?,
+            publish_date = ?,
+            file_path = ?
+        WHERE file_name = ?
         """,
-        (file_name.strip(), status.strip(), completed_at),
+        (
+            user_name.strip(),
+            bib.strip(),
+            call_number.strip(),
+            collection.strip(),
+            title.strip(),
+            publish_date,
+            file_path.strip(),
+            file_name.strip(),
+        ),
     )
     conn.commit()
 
 
 def list_document_updates(conn: sqlite3.Connection, file_name: str) -> list[dict[str, Any]]:
     """List all update transactions for a document with responsible user."""
-    rows = conn.execute(
-        """
-        SELECT
-            p.transaction_id,
-            p.status,
-            p.completed_at,
-            d.user_name,
-            d.created_at
-        FROM process_tracking p
-        INNER JOIN documents d
-            ON d.file_name = p.file_name
-        WHERE p.file_name = ?
-        ORDER BY p.transaction_id DESC
-        """,
-        (file_name,),
-    ).fetchall()
+    if _tracking_has_updated_by(conn):
+        rows = conn.execute(
+            """
+            SELECT
+                p.transaction_id,
+                p.status,
+                p.completed_at,
+                COALESCE(p.updated_by, d.user_name) AS user_name,
+                d.created_at
+            FROM process_tracking p
+            INNER JOIN documents d
+                ON d.file_name = p.file_name
+            WHERE p.file_name = ?
+            ORDER BY p.transaction_id DESC
+            """,
+            (file_name,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT
+                p.transaction_id,
+                p.status,
+                p.completed_at,
+                d.user_name,
+                d.created_at
+            FROM process_tracking p
+            INNER JOIN documents d
+                ON d.file_name = p.file_name
+            WHERE p.file_name = ?
+            ORDER BY p.transaction_id DESC
+            """,
+            (file_name,),
+        ).fetchall()
     return [dict(row) for row in rows]
 
 
