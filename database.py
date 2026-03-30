@@ -55,7 +55,8 @@ def init_database(conn: sqlite3.Connection) -> None:
             user_name TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             role TEXT NOT NULL CHECK (role IN ('Staff', 'Admin')),
-            note TEXT DEFAULT ''
+            note TEXT DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS documents (
@@ -98,6 +99,27 @@ def init_database(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             # If another process locks schema during startup, keep app running.
             pass
+
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "created_at" not in user_cols:
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN created_at TEXT;")
+            conn.execute("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL OR created_at = '';")
+        except sqlite3.OperationalError:
+            # If another process locks schema during startup, keep app running.
+            pass
+
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "web_link" not in user_cols:
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN web_link TEXT DEFAULT '';")
+        except sqlite3.OperationalError:
+            pass
+
+    conn.execute(
+        "UPDATE users SET note = '' WHERE note IN ('Default admin account', 'Default staff account');"
+    )
+    conn.commit()
 
     doc_cols = [row["name"] for row in conn.execute("PRAGMA table_info(documents)").fetchall()]
     needs_migration = ("name" in doc_cols) or ("user_name" not in doc_cols) or ("title" not in doc_cols)
@@ -166,10 +188,10 @@ def add_user(
     _validate_password(password)
     conn.execute(
         """
-        INSERT INTO users (email, user_name, password, role, note)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO users (email, user_name, password, role, note, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (email.strip().lower(), user_name.strip(), hash_password(password), role, note.strip()),
+        (email.strip().lower(), user_name.strip(), hash_password(password), role, note.strip(), _iso_now()),
     )
     conn.commit()
 
@@ -182,14 +204,14 @@ def seed_default_users(conn: sqlite3.Connection) -> None:
             "user_name": "Admin User",
             "password": hash_password("admin123"),
             "role": "Admin",
-            "note": "Default admin account",
+            "note": "",
         },
         {
             "email": "staff@digitization.local",
             "user_name": "Staff User",
             "password": hash_password("staff123"),
             "role": "Staff",
-            "note": "Default staff account",
+            "note": "",
         },
     ]
 
@@ -216,9 +238,18 @@ def authenticate_user(conn: sqlite3.Connection, email: str, password: str) -> Op
 def list_users(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """List all users ordered by role and user_name."""
     rows = conn.execute(
-        "SELECT email, user_name, role, note FROM users ORDER BY role DESC, user_name ASC"
+        "SELECT email, user_name, role, note, created_at FROM users ORDER BY role DESC, user_name ASC"
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def get_user_by_email(conn: sqlite3.Connection, email: str) -> Optional[dict[str, Any]]:
+    """Get a user profile by email for settings/profile view."""
+    row = conn.execute(
+        "SELECT email, user_name, role, note, created_at FROM users WHERE email = ?",
+        (email.strip().lower(),),
+    ).fetchone()
+    return dict(row) if row else None
 
 
 def add_document(

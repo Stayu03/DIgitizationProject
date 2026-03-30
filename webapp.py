@@ -12,6 +12,7 @@ from database import (
     add_user,
     authenticate_user,
     list_users,
+    get_user_by_email,
     add_document,
     list_documents,
     get_document,
@@ -607,7 +608,26 @@ def process_tracking_page(file_name):
 @login_required
 def settings_page():
     """Display settings page for all users."""
-    return render_template("setting.html")
+    current_email = session.get("user_email", "")
+    account = get_user_by_email(conn, current_email) if current_email else None
+    if not account:
+        account = {
+            "user_name": session.get("user_name", "-"),
+            "email": current_email or "-",
+            "note": "",
+            "created_at": "-",
+        }
+
+    created_at = account.get("created_at") or "-"
+    if created_at and created_at != "-":
+        created_at = str(created_at).replace("T", " ")
+
+    return render_template(
+        "setting.html",
+        account=account,
+        masked_password="********",
+        created_at_display=created_at,
+    )
 
 
 @app.route("/system-management", methods=["GET"])
