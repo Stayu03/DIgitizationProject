@@ -407,7 +407,14 @@
 				<input class="info-input" name="call_number" value="{{ document.call_number or '' }}" readonly>
 
 				<div class="info-label">คอลเลกชัน (Collection)</div>
-				<input class="info-input" name="collection" value="{{ document.collection or '' }}" readonly>
+				<select class="info-input" name="collection" disabled>
+					{% for option in collection_options %}
+					<option value="{{ option }}" {% if (document.collection or '') == option %}selected{% endif %}>{{ option }}</option>
+					{% endfor %}
+					{% if document.collection and document.collection not in collection_options %}
+					<option value="{{ document.collection }}" selected>{{ document.collection }}</option>
+					{% endif %}
+				</select>
 
 				<div class="info-label">ปีที่พิมพ์ (Published Date)</div>
 				<input class="info-input" name="publish_date" type="number" value="{{ document.publish_date or '' }}" readonly>
@@ -565,7 +572,11 @@
 					toggleBtn.dataset.mode = "edit";
 					form.classList.add("editing");
 					editableInputs.forEach(function (el) {
-						el.removeAttribute("readonly");
+						if (el.tagName.toLowerCase() === "select") {
+							el.removeAttribute("disabled");
+						} else {
+							el.removeAttribute("readonly");
+						}
 					});
 					toggleBtn.classList.remove("edit-btn");
 					toggleBtn.classList.add("save-btn");

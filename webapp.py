@@ -20,6 +20,8 @@ from database import (
     update_document_details,
     list_document_updates,
     list_status_counts,
+    list_collection_options,
+    replace_collection_options,
 )
 
 # Use pages/ as Jinja template folder to match current project structure.
@@ -451,10 +453,15 @@ def add_document_page():
         except sqlite3.IntegrityError as e:
             error_msg = "Document with this file_name already exists"
             users = list_users(conn)
-            return render_template("add_document.html", error=error_msg, users=users)
+            return render_template(
+                "add_document.html",
+                error=error_msg,
+                users=users,
+                collection_options=list_collection_options(conn),
+            )
 
     users = list_users(conn)
-    return render_template("add_document.html", users=users)
+    return render_template("add_document.html", users=users, collection_options=list_collection_options(conn))
 
 
 @app.route("/documents/<file_name>", methods=["GET"])
@@ -597,6 +604,7 @@ def process_tracking_page(file_name):
         latest_status=latest_status or PROCESS_STATUSES[0],
         latest_note=(latest_update.get("note") if latest_update else "") or "",
         process_statuses=PROCESS_STATUSES,
+        collection_options=list_collection_options(conn),
         can_edit_detail=session.get("user_role") == "Admin",
         users=list_users(conn) if session.get("user_role") == "Admin" else [],
     )
@@ -630,11 +638,22 @@ def settings_page():
     )
 
 
-@app.route("/system-management", methods=["GET"])
+@app.route("/system-management", methods=["GET", "POST"])
 @admin_required
 def system_management_page():
     """Display system management page for admins."""
-    return render_template("system_management.html")
+    if request.method == "POST":
+        raw_options = request.form.getlist("collection_options")
+        replace_collection_options(conn, raw_options)
+        return redirect(url_for("system_management_page"))
+
+    mode = request.args.get("mode", "view").strip().lower()
+    is_edit_mode = mode == "edit"
+    return render_template(
+        "system_management.html",
+        collection_options=list_collection_options(conn),
+        is_edit_mode=is_edit_mode,
+    )
 
 
 @app.route("/user-management", methods=["GET"])

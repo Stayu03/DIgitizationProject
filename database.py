@@ -10,6 +10,17 @@ from typing import Any, Optional
 
 DEFAULT_DB_PATH = "data/digitization.db"
 
+DEFAULT_COLLECTION_OPTIONS = [
+    "Chula Publications",
+    "Funeral Memorial Books",
+    "Manuscripts",
+    "Prince Dhani Nivat's Collection",
+    "Prince Kitiyakara Voralaksana's Collection",
+    "Rare Books",
+    "Rare Newspapers and Magazines",
+    "Thailand and Southeast Asia in the Cold War period",
+]
+
 
 def _iso_now() -> str:
     """Return current UTC time in ISO 8601 format."""
@@ -81,8 +92,20 @@ def init_database(conn: sqlite3.Connection) -> None:
             note TEXT DEFAULT '',
             FOREIGN KEY (file_name) REFERENCES documents(file_name)
         );
+
+        CREATE TABLE IF NOT EXISTS collection_options (
+            option_text TEXT PRIMARY KEY,
+            sort_order INTEGER NOT NULL
+        );
         """
     )
+
+    option_count = conn.execute("SELECT COUNT(*) AS total FROM collection_options").fetchone()["total"]
+    if option_count == 0:
+        conn.executemany(
+            "INSERT INTO collection_options (option_text, sort_order) VALUES (?, ?)",
+            [(name, idx) for idx, name in enumerate(DEFAULT_COLLECTION_OPTIONS, start=1)],
+        )
 
     tracking_cols = [row["name"] for row in conn.execute("PRAGMA table_info(process_tracking)").fetchall()]
     if "updated_by" not in tracking_cols:
@@ -576,6 +599,39 @@ def list_status_counts(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         """
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def list_collection_options(conn: sqlite3.Connection) -> list[str]:
+    """Return configured collection dropdown options in display order."""
+    rows = conn.execute(
+        "SELECT option_text FROM collection_options ORDER BY sort_order ASC, option_text ASC"
+    ).fetchall()
+    return [str(row["option_text"]).strip() for row in rows if str(row["option_text"]).strip()]
+
+
+def replace_collection_options(conn: sqlite3.Connection, options: list[str]) -> None:
+    """Replace all collection dropdown options with a new ordered list."""
+    cleaned = []
+    seen = set()
+    for opt in options:
+        value = (opt or "").strip()
+        if not value:
+            continue
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(value)
+
+    if not cleaned:
+        cleaned = DEFAULT_COLLECTION_OPTIONS[:]
+
+    conn.execute("DELETE FROM collection_options")
+    conn.executemany(
+        "INSERT INTO collection_options (option_text, sort_order) VALUES (?, ?)",
+        [(name, idx) for idx, name in enumerate(cleaned, start=1)],
+    )
+    conn.commit()
 
 
 def run_startup(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:

@@ -40,7 +40,12 @@
     <div class="grid-2" style="margin-top: 12px;">
       <div class="stack">
         <label for="collection">Collection</label>
-        <input id="collection" name="collection">
+        <select id="collection" name="collection">
+          <option value="">-- Select Collection --</option>
+          {% for option in collection_options %}
+          <option value="{{ option }}">{{ option }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="stack">
         <label for="title">Title</label>
