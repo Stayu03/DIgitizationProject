@@ -3,26 +3,395 @@
 {% block title %}จัดการบัญชีผู้ใช้งาน{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1 class="page-title">จัดการบัญชีผู้ใช้งาน</h1>
-  <table>
+<section class="card user-card">
+  <style>
+    .user-card {
+      padding: 24px;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .primary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 10px;
+      border: 0;
+      background: #24a0ed;
+      color: #fff;
+      text-decoration: none;
+      font-family: "Kanit", sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(36, 160, 237, 0.24);
+    }
+
+    .action-icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .notice {
+      margin: 0 0 16px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: #eef8ff;
+      color: #146a99;
+      font-size: 15px;
+    }
+
+    .account-form-card {
+      margin-bottom: 18px;
+      padding: 18px;
+      border-radius: 12px;
+      background: #fafbfc;
+      border: 1px solid #e2e4e8;
+    }
+
+    .account-form-title {
+      margin: 0 0 14px;
+      font-size: 22px;
+      font-weight: 400;
+      color: #1f2022;
+    }
+
+    .account-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .form-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-stack label {
+      font-size: 15px;
+      color: #2f3133;
+    }
+
+    .form-stack input,
+    .form-stack select {
+      min-height: 42px;
+      border: 1px solid #d3d8de;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 15px;
+      font-family: "Kanit", sans-serif;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .ghost-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 10px;
+      border: 1px solid #d3d8de;
+      color: #58595b;
+      text-decoration: none;
+      background: #fff;
+      font-size: 15px;
+    }
+
+    .toolbar-form {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) 220px 280px;
+      gap: 12px;
+      margin-bottom: 18px;
+      align-items: center;
+    }
+
+    .tool-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      border-radius: 10px;
+      background: #e9e9e9;
+      padding: 0 12px;
+    }
+
+    .tool-bar input,
+    .tool-bar select {
+      width: 100%;
+      height: 44px;
+      border: 0;
+      background: transparent;
+      color: #000;
+      font-size: 16px;
+      padding: 0;
+      font-family: "Kanit", sans-serif;
+      appearance: none;
+    }
+
+    .tool-bar input::placeholder {
+      color: #000;
+      opacity: 1;
+    }
+
+    .tool-icon {
+      width: 18px;
+      height: 18px;
+      fill: #58595b;
+      flex: 0 0 auto;
+    }
+
+    .user-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .user-table th {
+      color: #58595b;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid #dfe3e8;
+    }
+
+    .user-table td {
+      padding: 14px 10px;
+      font-size: 15px;
+      color: #2f3133;
+      border-bottom: 1px solid #edf0f3;
+      vertical-align: middle;
+    }
+
+    .number-col {
+      width: 90px;
+      text-align: center;
+    }
+
+    .date-cell {
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .status-pill.active {
+      background: #ecf9f0;
+      color: #197a3b;
+    }
+
+    .status-pill.inactive {
+      background: #f3f4f6;
+      color: #58595b;
+    }
+
+    .manage-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mini-form {
+      margin: 0;
+    }
+
+    .mini-btn {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 8px;
+      color: #fff;
+      font-family: "Kanit", sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .mini-btn.edit {
+      background: #24a0ed;
+    }
+
+    .mini-btn.delete {
+      background: #ff383c;
+    }
+
+    .mini-btn.suspend {
+      background: #58595b;
+    }
+
+    .self-note {
+      color: #8a8f95;
+      font-size: 13px;
+    }
+  </style>
+
+  <div class="top-bar">
+    <a class="primary-btn" href="{{ url_for('user_management_page', create=1) }}">
+      <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6z"/></svg>
+      <span>เพิ่มบัญชีผู้ใช้ใหม่</span>
+    </a>
+  </div>
+
+  {% if message == 'created' %}
+  <p class="notice">เพิ่มบัญชีผู้ใช้ใหม่เรียบร้อยแล้ว</p>
+  {% elif message == 'updated' %}
+  <p class="notice">อัปเดตข้อมูลบัญชีเรียบร้อยแล้ว</p>
+  {% elif message == 'deleted' %}
+  <p class="notice">ลบบัญชีผู้ใช้เรียบร้อยแล้ว</p>
+  {% elif message == 'status' %}
+  <p class="notice">อัปเดตสถานะบัญชีเรียบร้อยแล้ว</p>
+  {% endif %}
+
+  {% if error_message %}
+  <p class="notice" style="background: #fff1f1; color: #b42318;">{{ error_message }}</p>
+  {% endif %}
+
+  {% if show_create_form or edit_user %}
+  <section class="account-form-card">
+    <h2 class="account-form-title">{% if edit_user %}แก้ไขข้อมูลบัญชีผู้ใช้{% else %}เพิ่มบัญชีผู้ใช้ใหม่{% endif %}</h2>
+    <form method="post" action="{{ url_for('user_management_page') }}">
+      <input type="hidden" name="action" value="{% if edit_user %}edit{% else %}create{% endif %}">
+      {% if edit_user %}
+      <input type="hidden" name="current_email" value="{{ edit_user.email }}">
+      {% endif %}
+
+      <div class="account-form-grid">
+        <div class="form-stack">
+          <label for="user_name">ชื่อบัญชีผู้ใช้งาน</label>
+          <input id="user_name" name="user_name" value="{{ edit_user.user_name if edit_user else '' }}" required>
+        </div>
+        <div class="form-stack">
+          <label for="email">อีเมล</label>
+          <input id="email" name="email" type="email" value="{{ edit_user.email if edit_user else '' }}" required>
+        </div>
+
+        {% if not edit_user %}
+        <div class="form-stack">
+          <label for="password">รหัสผ่าน</label>
+          <input id="password" name="password" type="password" required>
+        </div>
+        {% endif %}
+
+        <div class="form-stack">
+          <label for="role">สิทธิ์ผู้ใช้งาน</label>
+          <select id="role" name="role">
+            <option value="Staff" {% if edit_user and edit_user.role == 'Staff' %}selected{% endif %}>Staff</option>
+            <option value="Admin" {% if edit_user and edit_user.role == 'Admin' %}selected{% endif %}>Admin</option>
+          </select>
+        </div>
+
+        <div class="form-stack">
+          <label for="account_status">สถานะบัญชี</label>
+          <select id="account_status" name="account_status">
+            <option value="Active" {% if not edit_user or edit_user.account_status == 'Active' %}selected{% endif %}>กำลังใช้งาน (Active)</option>
+            <option value="Inactive" {% if edit_user and edit_user.account_status == 'Inactive' %}selected{% endif %}>ถูกระงับการใช้งาน (Inactive)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="primary-btn" type="submit">{% if edit_user %}บันทึกข้อมูล{% else %}เพิ่มบัญชีผู้ใช้ใหม่{% endif %}</button>
+        <a class="ghost-btn" href="{{ url_for('user_management_page') }}">ยกเลิก</a>
+      </div>
+    </form>
+  </section>
+  {% endif %}
+
+  <form method="get" action="{{ url_for('user_management_page') }}" class="toolbar-form">
+    <div class="tool-bar">
+      <input type="text" name="q" value="{{ query or '' }}" placeholder="ค้นหาจากชื่อบัญชีผู้ใช้งานหรืออีเมล">
+      <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.5 6.5 0 1 0 14 15.5l.27.28v.79L20 21.5 21.5 20l-6-6zM10 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+    </div>
+
+    <div class="tool-bar">
+      <select name="status" onchange="this.form.submit()">
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>ทุกสถานะบัญชี</option>
+        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>กำลังใช้งาน (Active)</option>
+        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>ถูกระงับการใช้งาน (Inactive)</option>
+      </select>
+      <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"/></svg>
+    </div>
+
+    <div class="tool-bar">
+      <select name="sort" onchange="this.form.submit()">
+        <option value="new" {% if sort_order == 'new' %}selected{% endif %}>เรียงลำดับจากใหม่-เก่า</option>
+        <option value="old" {% if sort_order == 'old' %}selected{% endif %}>เรียงลำดับจากเก่า-ใหม่</option>
+        <option value="name" {% if sort_order == 'name' %}selected{% endif %}>เรียงลำดับจากชื่อบัญชีผู้ใช้งาน (ก-ฮ)</option>
+      </select>
+      <svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h10v2H7V6zm2 5h8v2H9v-2zm3 5h5v2h-5v-2zM4 6l2.5-2.5L9 6H7v12H6V6H4z"/></svg>
+    </div>
+  </form>
+
+  <table class="user-table">
     <thead>
       <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Role</th>
+        <th class="number-col">ลำดับที่</th>
+        <th>ชื่อบัญชีผู้ใช้งาน</th>
+        <th>อีเมล</th>
+        <th>วันที่สร้างบัญชี</th>
+        <th>สถานะบัญชี</th>
+        <th>จัดการบัญชี</th>
       </tr>
     </thead>
     <tbody>
       {% for u in users %}
       <tr>
+        <td class="number-col">{{ loop.index }}</td>
         <td>{{ u.user_name }}</td>
         <td>{{ u.email }}</td>
-        <td>{{ u.role }}</td>
+        <td class="date-cell">{{ (u.created_at or '-')|replace('T', ' ') }}</td>
+        <td>
+          <span class="status-pill {{ 'active' if (u.account_status or 'Active') == 'Active' else 'inactive' }}">
+            {{ account_status_labels.get(u.account_status or 'Active', account_status_labels['Active']) }}
+          </span>
+        </td>
+        <td>
+          {% if u.email == session.get('user_email') %}
+          <span class="self-note">ไม่สามารถจัดการบัญชีที่กำลังใช้งานอยู่ได้</span>
+          {% else %}
+          <div class="manage-actions">
+            <a class="mini-btn edit" style="text-decoration: none; display: inline-flex; align-items: center;" href="{{ url_for('user_management_page', edit=u.email) }}">แก้ไข</a>
+
+            <form class="mini-form" method="post" action="{{ url_for('user_management_page') }}">
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="email" value="{{ u.email }}">
+              <button class="mini-btn delete" type="submit">ลบ</button>
+            </form>
+
+            <form class="mini-form" method="post" action="{{ url_for('user_management_page') }}">
+              <input type="hidden" name="action" value="toggle_status">
+              <input type="hidden" name="email" value="{{ u.email }}">
+              <input type="hidden" name="target_status" value="{{ 'Inactive' if (u.account_status or 'Active') == 'Active' else 'Active' }}">
+              <button class="mini-btn suspend" type="submit">{{ 'ระงับ' if (u.account_status or 'Active') == 'Active' else 'เปิดใช้งาน' }}</button>
+            </form>
+          </div>
+          {% endif %}
+        </td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="3">ไม่มีผู้ใช้งาน</td>
+        <td colspan="6">ไม่มีข้อมูลบัญชีผู้ใช้งาน</td>
       </tr>
       {% endfor %}
     </tbody>

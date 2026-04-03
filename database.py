@@ -66,6 +66,7 @@ def init_database(conn: sqlite3.Connection) -> None:
             user_name TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL,
             role TEXT NOT NULL CHECK (role IN ('Staff', 'Admin')),
+            account_status TEXT NOT NULL DEFAULT 'Active' CHECK (account_status IN ('Active', 'Inactive')),
             note TEXT DEFAULT '',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
@@ -139,6 +140,16 @@ def init_database(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass
 
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "account_status" not in user_cols:
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN account_status TEXT DEFAULT 'Active';")
+            conn.execute(
+                "UPDATE users SET account_status = 'Active' WHERE account_status IS NULL OR account_status = '';"
+            )
+        except sqlite3.OperationalError:
+            pass
+
     conn.execute(
         "UPDATE users SET note = '' WHERE note IN ('Default admin account', 'Default staff account');"
     )
@@ -205,16 +216,25 @@ def add_user(
     user_name: str,
     password: str,
     role: str,
+    account_status: str = "Active",
     note: str = "",
 ) -> None:
     """Create a new user account."""
     _validate_password(password)
     conn.execute(
         """
-        INSERT INTO users (email, user_name, password, role, note, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO users (email, user_name, password, role, account_status, note, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (email.strip().lower(), user_name.strip(), hash_password(password), role, note.strip(), _iso_now()),
+        (
+            email.strip().lower(),
+            user_name.strip(),
+            hash_password(password),
+            role,
+            account_status if account_status in {"Active", "Inactive"} else "Active",
+            note.strip(),
+            _iso_now(),
+        ),
     )
     conn.commit()
 
@@ -227,6 +247,7 @@ def seed_default_users(conn: sqlite3.Connection) -> None:
             "user_name": "Admin User",
             "password": hash_password("admin123"),
             "role": "Admin",
+            "account_status": "Active",
             "note": "",
         },
         {
@@ -234,14 +255,15 @@ def seed_default_users(conn: sqlite3.Connection) -> None:
             "user_name": "Staff User",
             "password": hash_password("staff123"),
             "role": "Staff",
+            "account_status": "Active",
             "note": "",
         },
     ]
 
     conn.executemany(
         """
-        INSERT INTO users (email, user_name, password, role, note)
-        VALUES (:email, :user_name, :password, :role, :note)
+        INSERT INTO users (email, user_name, password, role, account_status, note)
+        VALUES (:email, :user_name, :password, :role, :account_status, :note)
         ON CONFLICT(email) DO NOTHING;
         """,
         seed_rows,
@@ -252,7 +274,7 @@ def seed_default_users(conn: sqlite3.Connection) -> None:
 def authenticate_user(conn: sqlite3.Connection, email: str, password: str) -> Optional[dict[str, Any]]:
     """Validate user credentials and return user record when valid."""
     row = conn.execute(
-        "SELECT email, user_name, role, note FROM users WHERE email = ? AND password = ?",
+        "SELECT email, user_name, role, account_status, note FROM users WHERE email = ? AND password = ? AND account_status = 'Active'",
         (email.strip().lower(), hash_password(password)),
     ).fetchone()
     return dict(row) if row else None
@@ -261,7 +283,7 @@ def authenticate_user(conn: sqlite3.Connection, email: str, password: str) -> Op
 def list_users(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """List all users ordered by role and user_name."""
     rows = conn.execute(
-        "SELECT email, user_name, role, note, created_at FROM users ORDER BY role DESC, user_name ASC"
+        "SELECT email, user_name, role, account_status, note, created_at FROM users ORDER BY created_at DESC, user_name ASC"
     ).fetchall()
     return [dict(row) for row in rows]
 
@@ -269,10 +291,54 @@ def list_users(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 def get_user_by_email(conn: sqlite3.Connection, email: str) -> Optional[dict[str, Any]]:
     """Get a user profile by email for settings/profile view."""
     row = conn.execute(
-        "SELECT email, user_name, role, note, created_at FROM users WHERE email = ?",
+        "SELECT email, user_name, role, account_status, note, created_at FROM users WHERE email = ?",
         (email.strip().lower(),),
     ).fetchone()
     return dict(row) if row else None
+
+
+def update_user_account(
+    conn: sqlite3.Connection,
+    current_email: str,
+    email: str,
+    user_name: str,
+    role: str,
+    account_status: str,
+) -> None:
+    """Update basic account information except password."""
+    conn.execute(
+        """
+        UPDATE users
+        SET email = ?, user_name = ?, role = ?, account_status = ?
+        WHERE email = ?
+        """,
+        (
+            email.strip().lower(),
+            user_name.strip(),
+            role,
+            account_status if account_status in {"Active", "Inactive"} else "Active",
+            current_email.strip().lower(),
+        ),
+    )
+    conn.commit()
+
+
+def update_user_status(conn: sqlite3.Connection, email: str, account_status: str) -> None:
+    """Update a user's active/inactive status."""
+    conn.execute(
+        "UPDATE users SET account_status = ? WHERE email = ?",
+        (
+            account_status if account_status in {"Active", "Inactive"} else "Active",
+            email.strip().lower(),
+        ),
+    )
+    conn.commit()
+
+
+def delete_user_account(conn: sqlite3.Connection, email: str) -> None:
+    """Delete a user account by email."""
+    conn.execute("DELETE FROM users WHERE email = ?", (email.strip().lower(),))
+    conn.commit()
 
 
 def add_document(

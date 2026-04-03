@@ -13,6 +13,9 @@ from database import (
     authenticate_user,
     list_users,
     get_user_by_email,
+    update_user_account,
+    update_user_status,
+    delete_user_account,
     add_document,
     list_documents,
     get_document,
@@ -40,6 +43,11 @@ PROCESS_STATUSES = [
 
 # Initialize database on startup
 conn = run_startup()
+
+ACCOUNT_STATUS_LABELS = {
+    "Active": "กำลังใช้งาน (Active)",
+    "Inactive": "ถูกระงับการใช้งาน (Inactive)",
+}
 
 
 def login_required(f):
@@ -656,12 +664,104 @@ def system_management_page():
     )
 
 
-@app.route("/user-management", methods=["GET"])
+@app.route("/user-management", methods=["GET", "POST"])
 @admin_required
 def user_management_page():
     """Display user management page for admins."""
+    error_message = ""
+
+    if request.method == "POST":
+        action = request.form.get("action", "").strip()
+
+        if action == "create":
+            try:
+                add_user(
+                    conn,
+                    request.form.get("email", "").strip(),
+                    request.form.get("user_name", "").strip(),
+                    request.form.get("password", "").strip(),
+                    request.form.get("role", "Staff").strip() or "Staff",
+                    request.form.get("account_status", "Active").strip() or "Active",
+                )
+            except (sqlite3.IntegrityError, ValueError):
+                error_message = "ไม่สามารถเพิ่มบัญชีผู้ใช้ได้ กรุณาตรวจสอบชื่อบัญชี อีเมล และรหัสผ่าน"
+            else:
+                return redirect(url_for("user_management_page", message="created"))
+
+        if action == "edit":
+            current_email = request.form.get("current_email", "").strip().lower()
+            if current_email:
+                try:
+                    update_user_account(
+                        conn,
+                        current_email,
+                        request.form.get("email", "").strip(),
+                        request.form.get("user_name", "").strip(),
+                        request.form.get("role", "Staff").strip() or "Staff",
+                        request.form.get("account_status", "Active").strip() or "Active",
+                    )
+                except sqlite3.IntegrityError:
+                    error_message = "ไม่สามารถอัปเดตข้อมูลบัญชีได้ กรุณาตรวจสอบชื่อบัญชีและอีเมล"
+                else:
+                    return redirect(url_for("user_management_page", message="updated"))
+
+        if action == "toggle_status":
+            email = request.form.get("email", "").strip().lower()
+            target_status = request.form.get("target_status", "Inactive").strip()
+            if email and email != (session.get("user_email") or "").strip().lower():
+                update_user_status(conn, email, target_status)
+            return redirect(url_for("user_management_page", message="status"))
+
+        if action == "delete":
+            email = request.form.get("email", "").strip().lower()
+            if email and email != (session.get("user_email") or "").strip().lower():
+                delete_user_account(conn, email)
+            return redirect(url_for("user_management_page", message="deleted"))
+
     users = list_users(conn)
-    return render_template("user_management.html", users=users)
+    query_text = request.args.get("q", "").strip()
+    query = query_text.lower()
+    status_filter = request.args.get("status", "all").strip().lower()
+    sort_order = request.args.get("sort", "new").strip().lower()
+    edit_email = request.args.get("edit", "").strip().lower()
+    show_create_form = request.args.get("create", "0").strip() == "1"
+
+    if query:
+        users = [
+            user for user in users
+            if query in (user.get("user_name") or "").lower() or query in (user.get("email") or "").lower()
+        ]
+
+    if status_filter == "active":
+        users = [user for user in users if (user.get("account_status") or "Active") == "Active"]
+    elif status_filter == "inactive":
+        users = [user for user in users if (user.get("account_status") or "Active") == "Inactive"]
+
+    if sort_order == "old":
+        users = sorted(users, key=lambda user: (user.get("created_at") or "", user.get("user_name") or ""))
+    elif sort_order == "name":
+        users = sorted(users, key=lambda user: (user.get("user_name") or ""))
+    else:
+        users = sorted(
+            users,
+            key=lambda user: (user.get("created_at") or "", user.get("user_name") or ""),
+            reverse=True,
+        )
+
+    edit_user = next((user for user in list_users(conn) if (user.get("email") or "").lower() == edit_email), None)
+
+    return render_template(
+        "user_management.html",
+        users=users,
+        query=query_text,
+        status_filter=status_filter,
+        sort_order=sort_order,
+        show_create_form=show_create_form,
+        edit_user=edit_user,
+        account_status_labels=ACCOUNT_STATUS_LABELS,
+        message=request.args.get("message", "").strip().lower(),
+        error_message=error_message,
+    )
 
 
 # ==================== API Routes ====================
