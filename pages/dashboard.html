@@ -3,54 +3,503 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<section class="card">
-  <h1 class="page-title">Dashboard</h1>
-  <p class="muted">สวัสดี {{ user_name or session.get('user_name') }}</p>
+<section class="card dashboard-card">
+	<style>
+		.dashboard-card {
+			display: flex;
+			flex-direction: column;
+			gap: 24px;
+		}
 
-  <h3>สถานะเอกสาร</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Status</th>
-        <th>Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in status_counts %}
-      <tr>
-        <td>{{ item.status }}</td>
-        <td>{{ item.total }}</td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="2">ยังไม่มีข้อมูล</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+		.topic-wrap {
+			margin-bottom: 12px;
+		}
 
-  <h3 style="margin-top: 20px;">รายการล่าสุด</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>File Name</th>
-        <th>Title</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for doc in recent_docs %}
-      <tr>
-        <td><a href="{{ url_for('view_document', file_name=doc.file_name) }}">{{ doc.file_name }}</a></td>
-        <td>{{ doc.title }}</td>
-        <td>{{ doc.current_status }}</td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="3">ยังไม่มีรายการ</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+		.topic-label {
+			font-size: 24px;
+			font-weight: 400;
+			line-height: 1.2;
+		}
+
+		.timeline-section {
+			display: flex;
+			flex-direction: column;
+			gap: 16px;
+		}
+
+		.timeline-scroll {
+			overflow-x: visible;
+			overflow-y: hidden;
+			padding-bottom: 0;
+		}
+
+		.timeline-container {
+			position: relative;
+			--timeline-line-y: 214px;
+			--line-box-gap: 40px;
+			--box-detail-gap: 10px;
+			width: 100%;
+			min-width: 0;
+			padding: 20px 0;
+			height: 540px;
+		}
+
+		.timeline-line {
+			position: absolute;
+			left: 14px;
+			right: 14px;
+			top: var(--timeline-line-y);
+			height: 4px;
+			background: #de5c8e;
+			border-radius: 999px;
+		}
+
+		.timeline-steps {
+			position: relative;
+			display: flex;
+			justify-content: space-between;
+			gap: 2px;
+			margin: 0 14px;
+			height: 100%;
+		}
+
+		.timeline-step {
+			position: relative;
+			flex: 1 1 0;
+			min-width: 0;
+			overflow: visible;
+		}
+
+		.timeline-dot {
+			position: absolute;
+			left: 50%;
+			top: var(--timeline-line-y);
+			transform: translate(-50%, -50%);
+			width: 12px;
+			height: 12px;
+			border-radius: 999px;
+			background: #de5c8e;
+			border: 2px solid #fff;
+			box-shadow: 0 0 0 1px #de5c8e;
+		}
+
+		.status-name-box {
+			position: absolute;
+			left: 50%;
+			transform: translateX(-50%);
+			width: calc(100% - 16px);
+			max-width: calc(100% - 16px);
+			min-width: 0;
+			box-sizing: border-box;
+			height: auto;
+			min-height: 52px;
+			border-radius: 8px;
+			border: 1px solid #de5c8e;
+			background: #fff;
+			color: #de5c8e;
+			font-size: 16px;
+			font-weight: 500;
+			line-height: 1.25;
+			text-align: center;
+			padding: 6px 7px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 3px;
+		}
+
+		.status-name-text {
+			display: block;
+			max-width: 100%;
+			white-space: normal;
+			word-break: break-word;
+		}
+
+		.status-box {
+			position: absolute;
+			left: 50%;
+			transform: translateX(-50%);
+			width: calc(100% - 10px);
+			max-width: calc(100% - 10px);
+			min-width: 0;
+			box-sizing: border-box;
+			height: auto;
+			min-height: 66px;
+			border-radius: 8px;
+			border: 1px solid #de5c8e;
+			background: #de5c8e;
+			color: #fff;
+			font-size: 16px;
+			font-weight: 500;
+			line-height: 1.25;
+			text-align: center;
+			padding: 8px;
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
+			gap: 0;
+		}
+
+		.status-box-text {
+			display: block;
+			max-width: 100%;
+			white-space: normal;
+			word-break: break-word;
+		}
+
+		.status-count {
+			font-size: 16px;
+			font-weight: 600;
+			color: #de5c8e;
+		}
+
+		.status-view-link {
+			font-size: 16px;
+			color: #de5c8e;
+			text-decoration: underline;
+			white-space: normal;
+		}
+
+		.status-view-link:hover {
+			opacity: 0.85;
+		}
+
+		.timeline-start,
+		.timeline-end {
+			position: absolute;
+			top: var(--timeline-line-y);
+			transform: translateY(-50%);
+			font-size: 16px;
+			font-weight: 500;
+			color: #de5c8e;
+			background: #fff;
+			padding: 0 4px;
+			z-index: 2;
+		}
+
+		.timeline-start {
+			left: 2px;
+		}
+
+		.timeline-end {
+			right: 2px;
+		}
+
+		.timeline-step.is-top .status-name-box {
+			top: auto;
+			bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap) + 88px);
+		}
+
+		.timeline-step.is-top .status-box {
+			top: auto;
+			bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap));
+		}
+
+		.timeline-step.is-bottom .status-name-box {
+			bottom: auto;
+			top: calc(var(--timeline-line-y) + var(--line-box-gap) + 88px);
+		}
+
+		.timeline-step.is-bottom .status-box {
+			bottom: auto;
+			top: calc(var(--timeline-line-y) + var(--line-box-gap));
+		}
+
+		/* Last status is longer, so shift it left and separate its detail box more. */
+		.timeline-step.is-last .status-box {
+			left: calc(50% - 14px);
+		}
+
+		.timeline-step.is-last .status-name-box {
+			left: calc(50% - 14px);
+		}
+
+		.timeline-step.is-last.is-top .status-name-box {
+			bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap) + 120px);
+		}
+
+		.timeline-step.is-last.is-bottom .status-name-box {
+			top: calc(var(--timeline-line-y) + var(--line-box-gap) + 120px);
+		}
+
+		.timeline-total {
+			position: relative;
+			margin-top: 10px;
+			font-size: 14px;
+			color: #de5c8e;
+			font-weight: 500;
+			white-space: nowrap;
+			display: flex;
+			justify-content: flex-end;
+			padding-right: 0;
+		}
+
+		.document-section {
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+		}
+
+		.tools {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 16px;
+		}
+
+		.tool-wrap {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			height: 44px;
+			border-radius: 10px;
+			background: #e9e9e9;
+			padding: 0 12px;
+			white-space: nowrap;
+		}
+
+		.tool-wrap.search-wrap {
+			flex: 1;
+			min-width: 220px;
+		}
+
+		.tool-wrap.compact-wrap {
+			flex: 0 0 auto;
+		}
+
+		.tool-input,
+		.tool-select {
+			width: 100%;
+			height: 44px;
+			border: 0;
+			border-radius: 10px;
+			background: transparent;
+			color: #000;
+			font-size: 16px;
+			padding: 0;
+			font-family: "Kanit", sans-serif;
+			appearance: none;
+		}
+
+		.tool-select.compact-select {
+			width: auto;
+			min-width: 0;
+			max-width: 100%;
+			padding-right: 4px;
+			flex: 0 0 auto;
+		}
+
+		.tool-icon {
+			width: 18px;
+			height: 18px;
+			fill: #5c5c5c;
+			flex: 0 0 auto;
+		}
+
+		.doc-table {
+			width: 100%;
+			border-collapse: collapse;
+			border-radius: 10px;
+			overflow: hidden;
+		}
+
+		.doc-table thead {
+			background: #f5f5f5;
+		}
+
+		.doc-table th {
+			padding: 12px;
+			text-align: left;
+			font-size: 15px;
+			font-weight: 600;
+			color: #1f2022;
+			border-bottom: 1px solid #e0e0e0;
+		}
+
+		.doc-table td {
+			padding: 12px;
+			font-size: 15px;
+			color: #2f3133;
+			border-bottom: 1px solid #f0f0f0;
+		}
+
+		.doc-table tbody tr:hover {
+			background-color: #fafafa;
+		}
+
+		.doc-link {
+			color: #de5c8e;
+			text-decoration: none;
+			font-weight: 500;
+		}
+
+		.doc-link:hover {
+			text-decoration: underline;
+		}
+
+		.status-pill {
+			display: inline-flex;
+			align-items: center;
+			padding: 6px 12px;
+			border-radius: 20px;
+			font-size: 13px;
+			font-weight: 500;
+			background: #f0f0f0;
+			color: #2f3133;
+		}
+
+		.no-data {
+			padding: 24px;
+			text-align: center;
+			color: #999;
+			font-size: 15px;
+		}
+
+		@media (max-width: 768px) {
+			.timeline-container {
+				height: auto;
+				min-height: 430px;
+			}
+
+			.status-box {
+				font-size: 16px;
+				padding: 6px;
+			}
+
+			.status-name-box {
+				font-size: 16px;
+				padding: 6px;
+			}
+
+			.timeline-total {
+				position: relative;
+				margin-top: 12px;
+			}
+		}
+	</style>
+
+	<!-- Overall Progress Section -->
+	<div class="timeline-section">
+		<div class="topic-wrap">
+			<div class="topic-label">ความคืบหน้าของกระบวนการทั้งหมด</div>
+		</div>
+
+		<!-- Timeline -->
+		<div class="timeline-scroll">
+			<div class="timeline-container">
+				<div class="timeline-line"></div>
+				<div class="timeline-start">เริ่ม</div>
+				<div class="timeline-end">จบ</div>
+
+				<div class="timeline-steps">
+					{% for status_info in status_timeline %}
+					<div class="timeline-step {% if status_info.is_top %}is-top{% else %}is-bottom{% endif %} {% if loop.last %}is-last{% endif %}">
+						<div class="timeline-dot"></div>
+						<div class="status-name-box">
+							<div class="status-box-text status-count">{{ status_info.count }} เล่ม</div>
+							<a href="#" class="status-box-text status-view-link" onclick="filterByStatus('{{ status_info.status }}'); return false;">ดูรายชื่อเอกสาร</a>
+						</div>
+						<div class="status-box">
+							<div class="status-name-text">{{ loop.index }}. {{ status_info.status }}</div>
+						</div>
+					</div>
+					{% endfor %}
+				</div>
+			</div>
+		</div>
+
+		<!-- Total Document Count -->
+		<div class="timeline-total">จากจำนวนเอกสารทั้งหมด {{ total_documents }} เล่ม</div>
+	</div>
+
+	<!-- Document Table Section -->
+	<div class="document-section">
+		<!-- Tools: Search and Sort -->
+		<div class="tools">
+			<div class="tool-wrap search-wrap">
+				<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+				<form method="get" class="search-form">
+					<input type="text" class="tool-input" name="q" value="{{ query or '' }}" placeholder="ค้นหาเอกสาร..." onchange="this.form.submit()">
+				</form>
+			</div>
+
+			<div class="tool-wrap compact-wrap">
+				<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"/></svg>
+				<form method="get" class="filter-form">
+					<input type="hidden" name="q" value="{{ query or '' }}">
+					<select class="tool-select compact-select" name="status" onchange="this.form.submit()">
+						<option value="">สถานะทั้งหมด</option>
+						{% for status in process_statuses %}
+						<option value="{{ status }}" {% if status == status_filter %}selected{% endif %}>{{ status }}</option>
+						{% endfor %}
+					</select>
+				</form>
+			</div>
+
+			<div class="tool-wrap compact-wrap">
+				<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+				<form method="get" class="sort-form">
+					<input type="hidden" name="q" value="{{ query or '' }}">
+					<input type="hidden" name="status" value="{{ status_filter or '' }}">
+					<select class="tool-select compact-select" name="sort" onchange="this.form.submit()">
+						<option value="new" {% if sort_order == 'new' %}selected{% endif %}>เรียงลำดับใหม่สุด</option>
+						<option value="old" {% if sort_order == 'old' %}selected{% endif %}>เรียงลำดับเก่าสุด</option>
+					</select>
+				</form>
+			</div>
+		</div>
+
+		<!-- Document Table -->
+		<table class="doc-table">
+			<thead>
+				<tr>
+					<th>ลำดับที่</th>
+					<th>ชื่อเอกสาร</th>
+					<th>อ้างอิง #BIB</th>
+					<th>หมายเลขเรียก</th>
+					<th>สถานะ</th>
+					<th>วันที่อัปเดตล่าสุด</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% if documents %}
+					{% for doc in documents %}
+					<tr>
+						<td>{{ loop.index }}</td>
+						<td><a href="{{ url_for('view_document', file_name=doc.file_name) }}" class="doc-link">{{ doc.title or doc.file_name }}</a></td>
+						<td>{{ doc.bib or '-' }}</td>
+						<td>{{ doc.call_number or '-' }}</td>
+						<td><span class="status-pill">{{ doc.current_status or 'คัดเลือกเอกสาร' }}</span></td>
+						<td>
+							{% set dt = (doc.last_completed_at or doc.created_at or '')|string %}
+							{% if dt %}
+								{% set dt_display = dt.replace('T', ' ').split('.')[0] %}
+								{{ dt_display }}
+							{% else %}
+								-
+							{% endif %}
+						</td>
+					</tr>
+					{% endfor %}
+				{% else %}
+				<tr>
+					<td colspan="6" class="no-data">ยังไม่มีข้อมูลเอกสาร</td>
+				</tr>
+				{% endif %}
+			</tbody>
+		</table>
+	</div>
+
+	<script>
+		function filterByStatus(status) {
+			const url = new URL(window.location);
+			url.searchParams.set('status', status);
+			url.searchParams.delete('q');
+			url.searchParams.delete('sort');
+			window.location.href = url.toString();
+		}
+	</script>
 </section>
 {% endblock %}

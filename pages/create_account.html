@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}บัญชีผู้ใช้งาน{% endblock %}
+
+{% block content %}
+<section class="card create-account-card">
+	<style>
+		.create-account-card {
+			padding: 24px;
+			max-width: 980px;
+		}
+
+		.topic-title {
+			margin: 0 0 16px;
+			font-size: 26px;
+			font-weight: 400;
+			color: #1f2022;
+		}
+
+		.error-box {
+			margin: 0 0 14px;
+			padding: 10px 14px;
+			border-radius: 10px;
+			background: #fff1f1;
+			color: #b42318;
+			font-size: 15px;
+		}
+
+		.form-stack {
+			display: grid;
+			gap: 12px;
+			max-width: 760px;
+		}
+
+		.field-label {
+			margin: 0;
+			font-size: 16px;
+			color: #2f3133;
+		}
+
+		.field-box {
+			width: 100%;
+			min-height: 44px;
+			border: 0;
+			border-radius: 10px;
+			background: #e9e9e9;
+			padding: 10px 12px;
+			font-family: "Kanit", sans-serif;
+			font-size: 16px;
+			color: #2f3133;
+			box-sizing: border-box;
+		}
+
+		.field-box[readonly] {
+			color: #5b6268;
+		}
+
+		.username-row {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 14px;
+			align-items: end;
+		}
+
+		.role-wrap {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			min-height: 44px;
+		}
+
+		.role-option {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 15px;
+			color: #2f3133;
+			white-space: nowrap;
+		}
+
+		.role-option input[type="radio"] {
+			appearance: none;
+			-webkit-appearance: none;
+			width: 20px;
+			height: 20px;
+			min-width: 20px;
+			min-height: 20px;
+			max-width: 20px;
+			max-height: 20px;
+			flex: 0 0 20px;
+			border: 2px solid #7d858d;
+			border-radius: 50%;
+			background: #fff;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			vertical-align: middle;
+			position: relative;
+			cursor: pointer;
+			margin: 0;
+			box-sizing: border-box;
+		}
+
+		.role-option input[type="radio"]:checked::after {
+			content: "";
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: #000;
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+		}
+
+		.note-box {
+			min-height: 92px;
+			resize: vertical;
+		}
+
+		.save-row {
+			margin-top: 16px;
+		}
+
+		.save-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			min-height: 44px;
+			padding: 0 16px;
+			border: 0;
+			border-radius: 10px;
+			background: #24a0ed;
+			color: #fff;
+			font-family: "Kanit", sans-serif;
+			font-size: 16px;
+			cursor: pointer;
+			box-shadow: 0 3px 10px rgba(36, 160, 237, 0.26);
+		}
+
+		.save-icon {
+			width: 16px;
+			height: 16px;
+			fill: currentColor;
+			flex: 0 0 auto;
+		}
+	</style>
+
+	<h1 class="topic-title">ข้อมูลบัญชีผู้ใช้งาน</h1>
+
+	{% if error_message %}
+	<p class="error-box">{{ error_message }}</p>
+	{% endif %}
+
+	<form method="post" action="{{ url_for('create_account_page') }}" class="form-stack">
+		<div>
+			<p class="field-label">ชื่อบัญชีผู้ใช้งาน</p>
+			<div class="username-row">
+				<input class="field-box" name="user_name" value="{{ form_values.user_name }}" required>
+				<div class="role-wrap" aria-label="เลือกสิทธิ์ผู้ใช้งาน">
+					<label class="role-option">
+						<input type="radio" name="role" value="Admin" {% if form_values.role == 'Admin' %}checked{% endif %}>
+						<span>Admin</span>
+					</label>
+					<label class="role-option">
+						<input type="radio" name="role" value="Staff" {% if form_values.role != 'Admin' %}checked{% endif %}>
+						<span>Staff</span>
+					</label>
+				</div>
+			</div>
+		</div>
+
+		<div>
+			<p class="field-label">อีเมล</p>
+			<input class="field-box" type="email" name="email" value="{{ form_values.email }}" required>
+		</div>
+
+		<div>
+			<p class="field-label">รหัสผ่าน</p>
+			<input class="field-box" type="password" name="password" required>
+		</div>
+
+		<div>
+			<p class="field-label">วันที่ลงทะเบียนเข้าใช้ครั้งแรก</p>
+			<input class="field-box" type="text" name="created_at_preview" value="{{ created_at_preview }}" readonly>
+		</div>
+
+		<div>
+			<p class="field-label">หมายเหตุ</p>
+			<textarea class="field-box note-box" name="note">{{ form_values.note }}</textarea>
+		</div>
+
+		<div class="save-row">
+			<button type="submit" class="save-btn">
+				<svg class="save-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zM7 5h8v4H7V5zm12 14H5v-8h14v8z"/></svg>
+				<span>บันทึกข้อมูล</span>
+			</button>
+		</div>
+	</form>
+</section>
+{% endblock %}

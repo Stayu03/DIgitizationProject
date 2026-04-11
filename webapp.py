@@ -119,14 +119,60 @@ def register():
 @app.route("/dashboard", methods=["GET"])
 @login_required
 def dashboard():
-    """Dashboard - show summary and recent documents."""
-    status_counts = list_status_counts(conn)
-    recent_docs = list_documents(conn)[:5]
-
+    """Dashboard - show overall progress timeline and all documents with filtering."""
+    # Get all documents
+    all_docs = list_documents(conn)
+    
+    # Build status counts map
+    status_counts_map = {}
+    for doc in all_docs:
+        status = doc.get("current_status") or "คัดเลือกเอกสาร"
+        status_counts_map[status] = status_counts_map.get(status, 0) + 1
+    
+    # Build timeline data for each process status
+    status_timeline = []
+    for idx, status_name in enumerate(PROCESS_STATUSES):
+        count = status_counts_map.get(status_name, 0)
+        status_timeline.append({
+            "status": status_name,
+            "count": count,
+            "is_top": idx % 2 == 0
+        })
+    
+    # Apply search/filter/sort
+    query = request.args.get("q", "").strip().lower()
+    status_filter = request.args.get("status", "").strip()
+    sort_order = request.args.get("sort", "new")
+    
+    docs = all_docs
+    
+    if query:
+        docs = [
+            d for d in docs
+            if query in (d.get("title") or "").lower() 
+            or query in (d.get("file_name") or "").lower()
+            or query in (d.get("bib") or "").lower()
+            or query in (d.get("call_number") or "").lower()
+        ]
+    
+    if status_filter:
+        docs = [d for d in docs if (d.get("current_status") or "") == status_filter]
+    
+    docs = sorted(
+        docs,
+        key=lambda d: ((d.get("last_completed_at") or d.get("created_at") or ""), d.get("file_name") or ""),
+        reverse=(sort_order != "old"),
+    )
+    
     return render_template(
         "dashboard.html",
-        status_counts=status_counts,
-        recent_docs=recent_docs,
+        status_timeline=status_timeline,
+        total_documents=len(all_docs),
+        documents=docs,
+        process_statuses=PROCESS_STATUSES,
+        query=query,
+        status_filter=status_filter,
+        sort_order=sort_order,
         user_name=session.get("user_name"),
     )
 
@@ -661,6 +707,48 @@ def system_management_page():
         "system_management.html",
         collection_options=list_collection_options(conn),
         is_edit_mode=is_edit_mode,
+    )
+
+
+@app.route("/create-account", methods=["GET", "POST"])
+@admin_required
+def create_account_page():
+    """Create a new user account page for admin users."""
+    form_values = {
+        "user_name": "",
+        "email": "",
+        "role": "Staff",
+        "note": "",
+    }
+    error_message = ""
+
+    if request.method == "POST":
+        form_values["user_name"] = request.form.get("user_name", "").strip()
+        form_values["email"] = request.form.get("email", "").strip().lower()
+        form_values["role"] = request.form.get("role", "Staff").strip() or "Staff"
+        form_values["note"] = request.form.get("note", "").strip()
+        raw_password = request.form.get("password", "")
+
+        try:
+            add_user(
+                conn,
+                form_values["email"],
+                form_values["user_name"],
+                raw_password,
+                form_values["role"],
+                "Active",
+                form_values["note"],
+            )
+            return redirect(url_for("user_management_page", message="created"))
+        except (sqlite3.IntegrityError, ValueError):
+            error_message = "ไม่สามารถเพิ่มบัญชีผู้ใช้ได้ กรุณาตรวจสอบชื่อบัญชี อีเมล และรหัสผ่าน"
+
+    created_at_preview = datetime.utcnow().replace(microsecond=0).isoformat().replace("T", " ")
+    return render_template(
+        "create_account.html",
+        created_at_preview=created_at_preview,
+        error_message=error_message,
+        form_values=form_values,
     )
 
 
