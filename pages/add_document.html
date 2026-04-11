@@ -17,12 +17,8 @@
         <input id="file_name" name="file_name" required>
       </div>
       <div class="stack">
-        <label for="user_name">User Name</label>
-        <select id="user_name" name="user_name" required>
-          {% for u in users %}
-          <option value="{{ u.user_name }}">{{ u.user_name }}</option>
-          {% endfor %}
-        </select>
+        <label>ผู้บันทึกรายการเอกสาร</label>
+        <input value="{{ actor_name or '-' }}" readonly>
       </div>
     </div>
 

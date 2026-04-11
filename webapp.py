@@ -481,13 +481,14 @@ def add_document_page():
     """Add a new document."""
     if request.method == "POST":
         file_name = request.form.get("file_name", "").strip()
-        user_name = request.form.get("user_name", "").strip()
         bib = request.form.get("bib", "").strip()
         call_number = request.form.get("call_number", "").strip()
         collection = request.form.get("collection", "").strip()
         title = request.form.get("title", "").strip()
         publish_date = request.form.get("publish_date", "")
         file_path = request.form.get("file_path", "").strip()
+        actor_name = (session.get("user_name") or "").strip()
+        actor_email = (session.get("user_email") or "").strip().lower()
 
         publish_date = int(publish_date) if publish_date else None
 
@@ -495,27 +496,30 @@ def add_document_page():
             add_document(
                 conn,
                 file_name,
-                user_name,
+                actor_name,
                 bib,
                 call_number,
                 collection,
                 title,
                 publish_date,
                 file_path,
+                actor_email,
             )
             return redirect(url_for("process_tracking_page", file_name=file_name, source="new"))
         except sqlite3.IntegrityError as e:
             error_msg = "Document with this file_name already exists"
-            users = list_users(conn)
             return render_template(
                 "add_document.html",
                 error=error_msg,
-                users=users,
+                actor_name=actor_name,
                 collection_options=list_collection_options(conn),
             )
 
-    users = list_users(conn)
-    return render_template("add_document.html", users=users, collection_options=list_collection_options(conn))
+    return render_template(
+        "add_document.html",
+        actor_name=session.get("user_name"),
+        collection_options=list_collection_options(conn),
+    )
 
 
 @app.route("/documents/<file_name>", methods=["GET"])
@@ -606,6 +610,7 @@ def process_tracking_page(file_name):
                     completed_at,
                     session.get("user_name"),
                     note,
+                    session.get("user_email"),
                 )
 
         return redirect(url_for("process_tracking_page", file_name=file_name, source="update"))
@@ -783,7 +788,6 @@ def user_management_page():
                     update_user_account(
                         conn,
                         current_email,
-                        request.form.get("email", "").strip(),
                         request.form.get("user_name", "").strip(),
                         request.form.get("role", "Staff").strip() or "Staff",
                         request.form.get("account_status", "Active").strip() or "Active",
@@ -889,7 +893,15 @@ def api_update_status(file_name):
     completed_at = data.get("completed_at")
 
     try:
-        add_process_tracking(conn, file_name, status, completed_at, session.get("user_name"))
+        add_process_tracking(
+            conn,
+            file_name,
+            status,
+            completed_at,
+            session.get("user_name"),
+            "",
+            session.get("user_email"),
+        )
         return jsonify({"success": True, "message": "Status updated"})
     except Exception as e:
         return jsonify({"error": str(e)}), 400

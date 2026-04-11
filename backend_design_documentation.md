@@ -20,10 +20,12 @@ The following is the database schema for the system:
   - `Password` (String)  
   - `Role` (String)
   - `Note` (String)
+  - `Created_at` (Date)
+  - `Account Status` (String)
 
 - **Documents**  
   - `FileName` (Primary Key, String)
-  - `UserName` (Foreign Key, String)  
+  - `UserName` (String, optional display/snapshot only)  
   - `BIB' (String)  
   - `CallNumber` (String)
   - `Collection` (String)
@@ -35,6 +37,7 @@ The following is the database schema for the system:
 - **Processes Tracking**  
   - `TransactionID` (Primary Key, Integer)  
   - `FileName` (Foreign Key, String)
+  - `UpdatedByEmail` (Foreign Key -> Users.Email, String)
   - `Status` (String)  
   - `Completed_At` (Datetime)
 

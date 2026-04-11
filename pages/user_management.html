@@ -244,6 +244,76 @@
       color: #8a8f95;
       font-size: 13px;
     }
+
+    .readonly-input {
+      background: #f3f4f6;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+
+    .field-hint {
+      margin: 0;
+      font-size: 13px;
+      color: #8a8f95;
+    }
+
+    .confirm-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(47, 49, 51, 0.38);
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .confirm-modal.is-open {
+      display: flex;
+    }
+
+    .confirm-dialog {
+      width: min(520px, 100%);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(47, 49, 51, 0.2);
+      padding: 28px 24px;
+      text-align: center;
+    }
+
+    .confirm-message {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.5;
+      color: #2f3133;
+    }
+
+    .confirm-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .confirm-btn {
+      min-width: 120px;
+      min-height: 44px;
+      border-radius: 10px;
+      border: 0;
+      font-family: "Kanit", sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .confirm-btn.submit {
+      background: #de5c8e;
+      color: #fff;
+    }
+
+    .confirm-btn.cancel {
+      background: #eceff3;
+      color: #58595b;
+    }
   </style>
 
   <div class="top-bar">
@@ -283,7 +353,10 @@
         </div>
         <div class="form-stack">
           <label for="email">อีเมล</label>
-          <input id="email" name="email" type="email" value="{{ edit_user.email if edit_user else '' }}" required>
+          <input id="email" name="email" type="email" value="{{ edit_user.email if edit_user else '' }}" {% if edit_user %}readonly class="readonly-input"{% endif %} required>
+          {% if edit_user %}
+          <p class="field-hint">ไม่สามารถแก้ไขอีเมลได้</p>
+          {% endif %}
         </div>
 
         {% if not edit_user %}
@@ -379,7 +452,7 @@
               <button class="mini-btn delete" type="submit">ลบ</button>
             </form>
 
-            <form class="mini-form" method="post" action="{{ url_for('user_management_page') }}">
+            <form class="mini-form js-suspend-form" method="post" action="{{ url_for('user_management_page') }}" data-account-name="{{ u.user_name }}">
               <input type="hidden" name="action" value="toggle_status">
               <input type="hidden" name="email" value="{{ u.email }}">
               <input type="hidden" name="target_status" value="{{ 'Inactive' if (u.account_status or 'Active') == 'Active' else 'Active' }}">
@@ -397,4 +470,66 @@
     </tbody>
   </table>
 </section>
+
+<div class="confirm-modal" id="suspendConfirmModal" aria-hidden="true">
+  <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="suspendConfirmMessage">
+    <p class="confirm-message" id="suspendConfirmMessage">คุณต้องการยืนยันการระงับบัญชีผู้ใช้งาน <strong id="suspendAccountName"></strong> หรือไม่</p>
+    <div class="confirm-actions">
+      <button class="confirm-btn submit" type="button" id="confirmSuspendButton">ยืนยัน</button>
+      <button class="confirm-btn cancel" type="button" id="cancelSuspendButton">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const modal = document.getElementById("suspendConfirmModal");
+    const accountNameNode = document.getElementById("suspendAccountName");
+    const confirmButton = document.getElementById("confirmSuspendButton");
+    const cancelButton = document.getElementById("cancelSuspendButton");
+    const suspendForms = document.querySelectorAll(".js-suspend-form");
+    let pendingForm = null;
+
+    function closeModal() {
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+      pendingForm = null;
+    }
+
+    suspendForms.forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        const targetStatus = form.querySelector('input[name="target_status"]').value;
+        if (targetStatus !== "Inactive") {
+          return;
+        }
+
+        event.preventDefault();
+        pendingForm = form;
+        accountNameNode.textContent = form.dataset.accountName || "";
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+      });
+    });
+
+    confirmButton.addEventListener("click", function () {
+      if (pendingForm) {
+        pendingForm.submit();
+      }
+    });
+
+    cancelButton.addEventListener("click", closeModal);
+
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && modal.classList.contains("is-open")) {
+        closeModal();
+      }
+    });
+  })();
+</script>
 {% endblock %}

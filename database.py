@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +22,103 @@ DEFAULT_COLLECTION_OPTIONS = [
     "Thailand and Southeast Asia in the Cold War period",
 ]
 
+INITIAL_USERS = [
+    {
+        "email": "somyingjd@gmail.com",
+        "user_name": "สมหญิง ใจดี",
+        "password": "12345678",
+        "role": "Staff",
+        "note": "",
+        "created_at": "2025-05-10",
+        "account_status": "Active",
+    },
+    {
+        "email": "chaichaichai555@gmail.com",
+        "user_name": "สมชาย ใจบุญ",
+        "password": "87654321",
+        "role": "Staff",
+        "note": "นิสิตจุฬาปี 3",
+        "created_at": "2025-05-09",
+        "account_status": "Inactive",
+    },
+    {
+        "email": "admindigisys1_cu@gmail.com",
+        "user_name": "ชาลี ชีลา",
+        "password": "adad1234",
+        "role": "Admin",
+        "note": "",
+        "created_at": "2025-05-01",
+        "account_status": "Active",
+    },
+]
+
+INITIAL_DOCUMENTS = [
+    {
+        "file_name": "RA-00001",
+        "bib": "b12345678",
+        "call_number": "[RA] 121 224",
+        "collection": "Rare Books",
+        "title": "กถาสริตสาคร",
+        "publish_date": 2499,
+        "file_path": "",
+        "created_at": "2025-09-04T14:00:00",
+        "user_name": "สมหญิง ใจดี",
+    },
+    {
+        "file_name": "TIC-00999-ENG",
+        "bib": "T12345678",
+        "call_number": "[TIC] 999 000",
+        "collection": "Thailand and Southeast Asia in the Cold War period",
+        "title": "Thailand in the Cold War",
+        "publish_date": 2558,
+        "file_path": "",
+        "created_at": "2025-09-06T10:00:00",
+        "user_name": "สมหญิง ใจดี",
+    },
+    {
+        "file_name": "KI-00050",
+        "bib": "K12345678",
+        "call_number": "[KI] 818 181",
+        "collection": "Prince Kitiyakara Voralaksana's Collection",
+        "title": "จันทกุมารชาดก",
+        "publish_date": 2530,
+        "file_path": "",
+        "created_at": "2025-09-18T15:50:00",
+        "user_name": "สมชาย ใจบุญ",
+    },
+]
+
+INITIAL_PROCESS_TRACKING = [
+    {
+        "file_name": "RA-00001",
+        "status": "คัดเลือกเอกสาร",
+        "completed_at": "2025-09-04T14:00:00",
+        "note": "เล่มแรกที่เข้าระบบ",
+        "updated_by_email": "somyingjd@gmail.com",
+    },
+    {
+        "file_name": "RA-00001",
+        "status": "สแกนเอกสาร",
+        "completed_at": "2025-09-15T16:00:00",
+        "note": "",
+        "updated_by_email": "somyingjd@gmail.com",
+    },
+    {
+        "file_name": "TIC-00999-ENG",
+        "status": "คัดเลือกเอกสาร",
+        "completed_at": "2025-09-06T10:00:00",
+        "note": "",
+        "updated_by_email": "somyingjd@gmail.com",
+    },
+    {
+        "file_name": "KI-00050",
+        "status": "คัดเลือกเอกสาร",
+        "completed_at": "2025-09-18T15:50:00",
+        "note": "",
+        "updated_by_email": "chaichaichai555@gmail.com",
+    },
+]
+
 
 def _iso_now() -> str:
     """Return current UTC time in ISO 8601 format."""
@@ -37,6 +135,21 @@ def _tracking_has_note(conn: sqlite3.Connection) -> bool:
     """Check whether process_tracking has note column."""
     cols = [row["name"] for row in conn.execute("PRAGMA table_info(process_tracking)").fetchall()]
     return "note" in cols
+
+
+def _tracking_has_updated_by_email(conn: sqlite3.Connection) -> bool:
+    """Check whether process_tracking has updated_by_email column."""
+    cols = [row["name"] for row in conn.execute("PRAGMA table_info(process_tracking)").fetchall()]
+    return "updated_by_email" in cols
+
+
+def _documents_has_user_fk(conn: sqlite3.Connection) -> bool:
+    """Check whether documents.user_name still has a foreign key to users."""
+    fks = conn.execute("PRAGMA foreign_key_list(documents)").fetchall()
+    for fk in fks:
+        if fk[2] == "users" and fk[3] == "user_name":
+            return True
+    return False
 
 
 def hash_password(raw_password: str) -> str:
@@ -90,14 +203,22 @@ def init_database(conn: sqlite3.Connection) -> None:
             status TEXT NOT NULL,
             completed_at TEXT,
             updated_by TEXT,
+            updated_by_email TEXT,
             note TEXT DEFAULT '',
-            FOREIGN KEY (file_name) REFERENCES documents(file_name)
+            FOREIGN KEY (file_name) REFERENCES documents(file_name),
+            FOREIGN KEY (updated_by_email) REFERENCES users(email)
         );
 
         CREATE TABLE IF NOT EXISTS collection_options (
             option_text TEXT PRIMARY KEY,
             sort_order INTEGER NOT NULL
         );
+
+        CREATE INDEX IF NOT EXISTS idx_documents_user_name ON documents(user_name);
+        CREATE INDEX IF NOT EXISTS idx_process_tracking_file_name_tx
+            ON process_tracking(file_name, transaction_id DESC);
+        CREATE INDEX IF NOT EXISTS idx_process_tracking_status ON process_tracking(status);
+        CREATE INDEX IF NOT EXISTS idx_process_tracking_updated_by_email ON process_tracking(updated_by_email);
         """
     )
 
@@ -122,6 +243,53 @@ def init_database(conn: sqlite3.Connection) -> None:
             conn.execute("ALTER TABLE process_tracking ADD COLUMN note TEXT DEFAULT '';")
         except sqlite3.OperationalError:
             # If another process locks schema during startup, keep app running.
+            pass
+
+    tracking_cols = [row["name"] for row in conn.execute("PRAGMA table_info(process_tracking)").fetchall()]
+    if "updated_by_email" not in tracking_cols:
+        try:
+            conn.execute("ALTER TABLE process_tracking ADD COLUMN updated_by_email TEXT;")
+            conn.execute(
+                """
+                UPDATE process_tracking
+                SET updated_by_email = (
+                    SELECT email FROM users u
+                    WHERE u.user_name = process_tracking.updated_by
+                    LIMIT 1
+                )
+                WHERE (updated_by_email IS NULL OR updated_by_email = '')
+                  AND (updated_by IS NOT NULL AND updated_by <> '');
+                """
+            )
+        except sqlite3.OperationalError:
+            pass
+
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "note" not in user_cols:
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN note TEXT DEFAULT '';")
+        except sqlite3.OperationalError:
+            pass
+
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "role" not in user_cols:
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'Staff';")
+        except sqlite3.OperationalError:
+            pass
+
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "password" not in user_cols:
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN password TEXT DEFAULT '';")
+        except sqlite3.OperationalError:
+            pass
+
+    user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if "user_name" not in user_cols:
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN user_name TEXT DEFAULT '';")
+        except sqlite3.OperationalError:
             pass
 
     user_cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()]
@@ -156,7 +324,36 @@ def init_database(conn: sqlite3.Connection) -> None:
     conn.commit()
 
     doc_cols = [row["name"] for row in conn.execute("PRAGMA table_info(documents)").fetchall()]
-    needs_migration = ("name" in doc_cols) or ("user_name" not in doc_cols) or ("title" not in doc_cols)
+    required_doc_columns = {
+        "bib": "TEXT NOT NULL DEFAULT ''",
+        "call_number": "TEXT NOT NULL DEFAULT ''",
+        "collection": "TEXT NOT NULL DEFAULT ''",
+        "title": "TEXT NOT NULL DEFAULT ''",
+        "publish_date": "INTEGER",
+        "file_path": "TEXT NOT NULL DEFAULT ''",
+        "created_at": "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP",
+    }
+    for col_name, col_def in required_doc_columns.items():
+        if col_name not in doc_cols:
+            try:
+                conn.execute(f"ALTER TABLE documents ADD COLUMN {col_name} {col_def};")
+            except sqlite3.OperationalError:
+                pass
+
+    tracking_cols = [row["name"] for row in conn.execute("PRAGMA table_info(process_tracking)").fetchall()]
+    if "completed_at" not in tracking_cols:
+        try:
+            conn.execute("ALTER TABLE process_tracking ADD COLUMN completed_at TEXT;")
+        except sqlite3.OperationalError:
+            pass
+
+    doc_cols = [row["name"] for row in conn.execute("PRAGMA table_info(documents)").fetchall()]
+    needs_migration = (
+        ("name" in doc_cols)
+        or ("user_name" not in doc_cols)
+        or ("title" not in doc_cols)
+        or _documents_has_user_fk(conn)
+    )
 
     if needs_migration:
         user_col = "name" if "name" in doc_cols else "user_name"
@@ -168,15 +365,14 @@ def init_database(conn: sqlite3.Connection) -> None:
             """
             CREATE TABLE documents_new (
                 file_name TEXT PRIMARY KEY,
-                user_name TEXT NOT NULL,
+                user_name TEXT NOT NULL DEFAULT '',
                 bib TEXT NOT NULL DEFAULT '',
                 call_number TEXT NOT NULL DEFAULT '',
                 collection TEXT NOT NULL DEFAULT '',
                 title TEXT NOT NULL DEFAULT '',
                 publish_date INTEGER,
                 file_path TEXT NOT NULL DEFAULT '',
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (user_name) REFERENCES users(user_name)
+                created_at TEXT NOT NULL
             );
             """
         )
@@ -205,9 +401,81 @@ def init_database(conn: sqlite3.Connection) -> None:
 
 
 def _validate_password(password: str) -> None:
-    """Require password to be at least 8 characters."""
-    if len(password) < 8:
-        raise ValueError("Password must be at least 8 characters long.")
+    """Require password to be exactly 8 alphanumeric characters."""
+    if not re.fullmatch(r"[A-Za-z0-9]{8}", password or ""):
+        raise ValueError("Password must be exactly 8 characters (A-Z, a-z, 0-9).")
+
+
+def _seed_initial_data(conn: sqlite3.Connection) -> None:
+    """Seed baseline records when all core tables are empty."""
+    user_count = conn.execute("SELECT COUNT(*) AS total FROM users").fetchone()["total"]
+    doc_count = conn.execute("SELECT COUNT(*) AS total FROM documents").fetchone()["total"]
+    tracking_count = conn.execute("SELECT COUNT(*) AS total FROM process_tracking").fetchone()["total"]
+
+    if any((user_count, doc_count, tracking_count)):
+        return
+
+    for user in INITIAL_USERS:
+        conn.execute(
+            """
+            INSERT INTO users (email, user_name, password, role, account_status, note, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user["email"],
+                user["user_name"],
+                hash_password(user["password"]),
+                user["role"],
+                user["account_status"],
+                user["note"],
+                user["created_at"],
+            ),
+        )
+
+    for doc in INITIAL_DOCUMENTS:
+        conn.execute(
+            """
+            INSERT INTO documents (
+                file_name, user_name, bib, call_number, collection, title, publish_date, file_path, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                doc["file_name"],
+                doc["user_name"],
+                doc["bib"],
+                doc["call_number"],
+                doc["collection"],
+                doc["title"],
+                doc["publish_date"],
+                doc["file_path"],
+                doc["created_at"],
+            ),
+        )
+
+    for item in INITIAL_PROCESS_TRACKING:
+        conn.execute(
+            """
+            INSERT INTO process_tracking (file_name, status, completed_at, updated_by, updated_by_email, note)
+            VALUES (
+                ?,
+                ?,
+                ?,
+                (SELECT user_name FROM users WHERE email = ?),
+                ?,
+                ?
+            )
+            """,
+            (
+                item["file_name"],
+                item["status"],
+                item["completed_at"],
+                item["updated_by_email"],
+                item["updated_by_email"],
+                item["note"],
+            ),
+        )
+
+    conn.commit()
 
 
 def add_user(
@@ -235,38 +503,6 @@ def add_user(
             note.strip(),
             _iso_now(),
         ),
-    )
-    conn.commit()
-
-
-def seed_default_users(conn: sqlite3.Connection) -> None:
-    """Insert one admin and one staff account if they do not already exist."""
-    seed_rows = [
-        {
-            "email": "admin@digitization.local",
-            "user_name": "Admin User",
-            "password": hash_password("admin123"),
-            "role": "Admin",
-            "account_status": "Active",
-            "note": "",
-        },
-        {
-            "email": "staff@digitization.local",
-            "user_name": "Staff User",
-            "password": hash_password("staff123"),
-            "role": "Staff",
-            "account_status": "Active",
-            "note": "",
-        },
-    ]
-
-    conn.executemany(
-        """
-        INSERT INTO users (email, user_name, password, role, account_status, note)
-        VALUES (:email, :user_name, :password, :role, :account_status, :note)
-        ON CONFLICT(email) DO NOTHING;
-        """,
-        seed_rows,
     )
     conn.commit()
 
@@ -300,7 +536,6 @@ def get_user_by_email(conn: sqlite3.Connection, email: str) -> Optional[dict[str
 def update_user_account(
     conn: sqlite3.Connection,
     current_email: str,
-    email: str,
     user_name: str,
     role: str,
     account_status: str,
@@ -309,11 +544,10 @@ def update_user_account(
     conn.execute(
         """
         UPDATE users
-        SET email = ?, user_name = ?, role = ?, account_status = ?
+        SET user_name = ?, role = ?, account_status = ?
         WHERE email = ?
         """,
         (
-            email.strip().lower(),
             user_name.strip(),
             role,
             account_status if account_status in {"Active", "Inactive"} else "Active",
@@ -344,13 +578,14 @@ def delete_user_account(conn: sqlite3.Connection, email: str) -> None:
 def add_document(
     conn: sqlite3.Connection,
     file_name: str,
-    user_name: str,
+    created_by_name: str,
     bib: str,
     call_number: str,
     collection: str,
     title: str,
     publish_date: Optional[int],
     file_path: str,
+    created_by_email: Optional[str] = None,
     created_at: Optional[str] = None,
 ) -> None:
     """Create a new document and initialize process status as Pending."""
@@ -365,7 +600,7 @@ def add_document(
         """,
         (
             file_name.strip(),
-            user_name.strip(),
+            (created_by_name or "").strip(),
             bib.strip(),
             call_number.strip(),
             collection.strip(),
@@ -377,15 +612,37 @@ def add_document(
     )
 
     has_updated_by = _tracking_has_updated_by(conn)
+    has_updated_by_email = _tracking_has_updated_by_email(conn)
     has_note = _tracking_has_note(conn)
 
-    if has_updated_by and has_note:
+    if has_updated_by and has_updated_by_email and has_note:
         conn.execute(
             """
-            INSERT INTO process_tracking (file_name, status, completed_at, updated_by, note)
+            INSERT INTO process_tracking (file_name, status, completed_at, updated_by, updated_by_email, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                file_name.strip(),
+                "คัดเลือกเอกสาร",
+                created_at_value,
+                (created_by_name or "").strip() or None,
+                (created_by_email or "").strip().lower() or None,
+                "",
+            ),
+        )
+    elif has_updated_by and has_updated_by_email:
+        conn.execute(
+            """
+            INSERT INTO process_tracking (file_name, status, completed_at, updated_by, updated_by_email)
             VALUES (?, ?, ?, ?, ?)
             """,
-            (file_name.strip(), "คัดเลือกเอกสาร", created_at_value, user_name.strip(), ""),
+            (
+                file_name.strip(),
+                "คัดเลือกเอกสาร",
+                created_at_value,
+                (created_by_name or "").strip() or None,
+                (created_by_email or "").strip().lower() or None,
+            ),
         )
     elif has_updated_by:
         conn.execute(
@@ -393,7 +650,7 @@ def add_document(
             INSERT INTO process_tracking (file_name, status, completed_at, updated_by)
             VALUES (?, ?, ?, ?)
             """,
-            (file_name.strip(), "คัดเลือกเอกสาร", created_at_value, user_name.strip()),
+            (file_name.strip(), "คัดเลือกเอกสาร", created_at_value, (created_by_name or "").strip() or None),
         )
     elif has_note:
         conn.execute(
@@ -479,15 +736,32 @@ def add_process_tracking(
     completed_at: Optional[str] = None,
     updated_by: Optional[str] = None,
     note: str = "",
+    updated_by_email: Optional[str] = None,
 ) -> None:
     """Append a status transaction for the given document."""
     has_updated_by = _tracking_has_updated_by(conn)
+    has_updated_by_email = _tracking_has_updated_by_email(conn)
     has_note = _tracking_has_note(conn)
 
-    if has_updated_by and has_note:
+    if has_updated_by and has_updated_by_email and has_note:
         conn.execute(
             """
-            INSERT INTO process_tracking (file_name, status, completed_at, updated_by, note)
+            INSERT INTO process_tracking (file_name, status, completed_at, updated_by, updated_by_email, note)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                file_name.strip(),
+                status.strip(),
+                completed_at,
+                (updated_by or "").strip() or None,
+                (updated_by_email or "").strip().lower() or None,
+                (note or "").strip(),
+            ),
+        )
+    elif has_updated_by and has_updated_by_email:
+        conn.execute(
+            """
+            INSERT INTO process_tracking (file_name, status, completed_at, updated_by, updated_by_email)
             VALUES (?, ?, ?, ?, ?)
             """,
             (
@@ -495,7 +769,7 @@ def add_process_tracking(
                 status.strip(),
                 completed_at,
                 (updated_by or "").strip() or None,
-                (note or "").strip(),
+                (updated_by_email or "").strip().lower() or None,
             ),
         )
     elif has_updated_by:
@@ -568,7 +842,49 @@ def list_document_updates(conn: sqlite3.Connection, file_name: str) -> list[dict
     has_updated_by = _tracking_has_updated_by(conn)
     has_note = _tracking_has_note(conn)
 
-    if has_updated_by and has_note:
+    has_updated_by_email = _tracking_has_updated_by_email(conn)
+
+    if has_updated_by and has_updated_by_email and has_note:
+        rows = conn.execute(
+            """
+            SELECT
+                p.transaction_id,
+                p.status,
+                p.completed_at,
+                COALESCE(u.user_name, p.updated_by, d.user_name) AS user_name,
+                COALESCE(p.note, '') AS note,
+                d.created_at
+            FROM process_tracking p
+            INNER JOIN documents d
+                ON d.file_name = p.file_name
+            LEFT JOIN users u
+                ON u.email = p.updated_by_email
+            WHERE p.file_name = ?
+            ORDER BY p.transaction_id DESC
+            """,
+            (file_name,),
+        ).fetchall()
+    elif has_updated_by and has_updated_by_email:
+        rows = conn.execute(
+            """
+            SELECT
+                p.transaction_id,
+                p.status,
+                p.completed_at,
+                COALESCE(u.user_name, p.updated_by, d.user_name) AS user_name,
+                '' AS note,
+                d.created_at
+            FROM process_tracking p
+            INNER JOIN documents d
+                ON d.file_name = p.file_name
+            LEFT JOIN users u
+                ON u.email = p.updated_by_email
+            WHERE p.file_name = ?
+            ORDER BY p.transaction_id DESC
+            """,
+            (file_name,),
+        ).fetchall()
+    elif has_updated_by and has_note:
         rows = conn.execute(
             """
             SELECT
@@ -704,33 +1020,6 @@ def run_startup(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     """Initialize database and return ready-to-use connection."""
     conn = get_connection(db_path)
     init_database(conn)
-    seed_default_users(conn)
-
-    try:
-        add_user(
-            conn,
-            "somyingjd@gmail.com",
-            "สมหญิง ใจดี",
-            "12345678",
-            "Staff",
-            "manual test user",
-        )
-    except (sqlite3.IntegrityError, ValueError):
-        pass
-
-    try:
-        add_document(
-            conn,
-            "RA-00001",
-            "สมหญิง ใจดี",
-            "b12345678",
-            "RA121224",
-            "Rare Books",
-            "กถาสริตสาคร",
-            1956,
-            "/tmp/doc001.pdf",
-        )
-    except sqlite3.IntegrityError:
-        pass
+    _seed_initial_data(conn)
 
     return conn
