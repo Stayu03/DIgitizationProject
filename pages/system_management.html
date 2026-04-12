@@ -11,7 +11,7 @@
 
     .system-page-title {
       margin: 0 0 22px;
-      font-size: 30px;
+      font-size: 24px;
       font-weight: 400;
       color: #1f2022;
     }
@@ -117,6 +117,10 @@
     }
   </style>
 
+  {% if message == 'saved' %}
+  <div class="page-alert-placeholder" data-page-alert-message="บันทึกตัวเลือกในระบบเรียบร้อยแล้ว"></div>
+  {% endif %}
+
   <h1 class="system-page-title">ตัวเลือกในระบบ</h1>
 
   <div class="system-layout">
@@ -140,11 +144,12 @@
         </div>
       </form>
       {% else %}
-      <select class="collection-select" name="collection">
+      <select class="collection-select" name="collection" size="{{ [collection_options|length, 4]|max }}" disabled>
         {% for option in collection_options %}
         <option>{{ option }}</option>
         {% endfor %}
       </select>
+      <p class="edit-hint">แสดงตัวเลือกทั้งหมดในระบบปัจจุบัน กดปุ่มอัปเดตตัวเลือกเมื่อต้องการแก้ไข</p>
       {% endif %}
     </div>
 

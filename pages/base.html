@@ -128,13 +128,14 @@
     }
 
     .user-name-box {
-      background: var(--gray-700);
+      background: var(--pink);
       color: var(--white);
       font-size: 16px;
       line-height: 1;
       padding: 10px 14px;
       border-radius: 999px;
       min-width: 128px;
+      border: 1px solid #fff;
       text-align: center;
       white-space: nowrap;
       overflow: hidden;
@@ -240,7 +241,7 @@
 
     .btn {
       display: inline-block;
-      background: var(--pink);
+      background: #24a0ed;
       color: var(--white);
       text-decoration: none;
       border: none;
@@ -249,6 +250,15 @@
       font-family: "Kanit", sans-serif;
       font-size: 15px;
       cursor: pointer;
+      transition: filter 0.18s ease, transform 0.18s ease;
+    }
+
+    .btn:hover {
+      filter: brightness(0.96);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
     }
 
     input,
@@ -263,7 +273,8 @@
 
     table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 10px 10px;
     }
 
     th,
@@ -294,6 +305,136 @@
       flex-direction: column;
       gap: 6px;
     }
+
+    .save-btn-shared {
+      background: #24a0ed;
+      color: #fff;
+    }
+
+    .edit-btn-shared {
+      background: #58595b;
+      color: #fff;
+    }
+
+    .page-alert-placeholder {
+      display: none;
+    }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .table-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      border-radius: 10px;
+      background: #e9e9e9;
+      padding: 0 12px;
+      white-space: nowrap;
+      transition: background-color 0.18s ease;
+    }
+
+    .table-bar.search-bar {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .table-bar.compact-bar {
+      flex: 0 0 auto;
+    }
+
+    .table-bar.compact-bar.is-active,
+    .table-bar.compact-bar:focus-within {
+      background: #f8e1ea;
+    }
+
+    .table-input,
+    .table-select {
+      width: 100%;
+      min-height: 44px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #000;
+      font-size: 16px;
+      padding: 0;
+      font-family: "Kanit", sans-serif;
+      appearance: none;
+    }
+
+    .table-select.compact-select {
+      width: auto;
+      min-width: 0;
+      max-width: 100%;
+      padding-right: 4px;
+      flex: 0 0 auto;
+    }
+
+    .table-icon {
+      width: 18px;
+      height: 18px;
+      fill: #5c5c5c;
+      flex: 0 0 auto;
+    }
+
+    .table-input::placeholder {
+      color: #000;
+      opacity: 1;
+    }
+
+    .pattern-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 12px 10px;
+      overflow: visible;
+    }
+
+    .pattern-table thead th {
+      background: transparent;
+      color: #58595b;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      text-align: center;
+      padding: 6px 10px;
+      border: none !important;
+      border-radius: 0;
+      vertical-align: middle;
+      box-shadow: none;
+      outline: none;
+    }
+
+    .pattern-table thead th:not(:last-child) {
+      border-right: none !important;
+    }
+
+    .pattern-table td {
+      padding: 14px 10px;
+      font-size: 16px;
+      color: #000;
+      border: 0;
+      border-radius: 15px;
+      text-align: center;
+      vertical-align: middle;
+      background: #f8e1ea;
+    }
+
+    .pattern-table tbody tr:nth-child(even) td {
+      background: #e9e9e9;
+    }
+
+    .pattern-table tbody tr:nth-child(odd) td {
+      background: #f8e1ea;
+    }
+
+    .pattern-table .left-cell {
+      text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -305,5 +446,19 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  <script>
+    (function () {
+      var alertNode = document.querySelector('[data-page-alert-message]');
+      if (!alertNode) {
+        return;
+      }
+      var message = alertNode.getAttribute('data-page-alert-message');
+      if (message) {
+        window.setTimeout(function () {
+          alert(message);
+        }, 80);
+      }
+    })();
+  </script>
 </body>
 </html>

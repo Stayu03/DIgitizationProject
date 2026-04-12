@@ -17,6 +17,7 @@ from database import (
     update_user_status,
     delete_user_account,
     admin_reset_user_password,
+    update_user_password,
     add_document,
     list_documents,
     get_document,
@@ -49,6 +50,93 @@ ACCOUNT_STATUS_LABELS = {
     "Active": "กำลังใช้งาน (Active)",
     "Inactive": "ถูกระงับการใช้งาน (Inactive)",
 }
+
+
+def _parse_datetime(value):
+    """Parse ISO-like datetime strings from SQLite into datetime objects."""
+    if not value:
+        return None
+
+    text = str(value).strip()
+    if not text or text == "-":
+        return None
+
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        pass
+
+    for pattern in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text, pattern)
+        except ValueError:
+            continue
+    return None
+
+
+def format_display_date(value):
+    """Render date as DD/MM/YYYY."""
+    parsed = _parse_datetime(value)
+    if parsed:
+        return parsed.strftime("%d/%m/%Y")
+    return "-" if not value else str(value)
+
+
+def format_display_time(value):
+    """Render time as HH.MM น."""
+    parsed = _parse_datetime(value)
+    if parsed:
+        return parsed.strftime("%H.%M น.")
+    return "-"
+
+
+app.jinja_env.filters["display_date"] = format_display_date
+app.jinja_env.filters["display_time"] = format_display_time
+
+
+def _sort_documents(docs, sort_order):
+    """Apply shared sorting rules for document collections."""
+    order = (sort_order or "new").strip().lower()
+    if order == "old":
+        return sorted(
+            docs,
+            key=lambda d: ((d.get("last_completed_at") or d.get("created_at") or ""), (d.get("file_name") or "").casefold()),
+        )
+    if order == "title":
+        return sorted(
+            docs,
+            key=lambda d: ((d.get("title") or "").casefold(), (d.get("file_name") or "").casefold()),
+        )
+    return sorted(
+        docs,
+        key=lambda d: ((d.get("last_completed_at") or d.get("created_at") or ""), (d.get("file_name") or "").casefold()),
+        reverse=True,
+    )
+
+
+def _filter_documents_by_status(docs, status_filter, current_user_email, current_user_name):
+    """Apply shared status filtering rules for document collections."""
+    selected = (status_filter or "").strip()
+    if not selected:
+        return docs
+
+    if selected == "my_job":
+        normalized_email = (current_user_email or "").strip().lower()
+        normalized_name = (current_user_name or "").strip()
+        filtered_docs = []
+        for doc in docs:
+            owner_name = (doc.get("user_name") or "").strip()
+            latest_user_email = (doc.get("latest_user_email") or "").strip().lower()
+            latest_user_name = (doc.get("latest_user_name") or "").strip()
+            if (
+                (normalized_email and latest_user_email == normalized_email)
+                or (normalized_name and owner_name == normalized_name)
+                or (normalized_name and latest_user_name == normalized_name)
+            ):
+                filtered_docs.append(doc)
+        return filtered_docs
+
+    return [d for d in docs if (d.get("current_status") or "") == selected]
 
 
 def login_required(f):
@@ -97,7 +185,7 @@ def login():
             session["user_role"] = user["role"]
             return redirect(url_for("dashboard"))
         else:
-            return render_template("login.html", error="Invalid email or password")
+            return render_template("login.html", error="อีเมลหรือรหัสผ่านไม่ถูกต้อง")
 
     return render_template("login.html")
 
@@ -156,14 +244,14 @@ def dashboard():
             or query in (d.get("call_number") or "").lower()
         ]
     
-    if status_filter:
-        docs = [d for d in docs if (d.get("current_status") or "") == status_filter]
-    
-    docs = sorted(
+    docs = _filter_documents_by_status(
         docs,
-        key=lambda d: ((d.get("last_completed_at") or d.get("created_at") or ""), d.get("file_name") or ""),
-        reverse=(sort_order != "old"),
+        status_filter,
+        session.get("user_email"),
+        session.get("user_name"),
     )
+    
+    docs = _sort_documents(docs, sort_order)
     
     return render_template(
         "dashboard.html",
@@ -197,14 +285,14 @@ def documents_list():
             if query in (d.get("title") or "").lower() or query in (d.get("file_name") or "").lower()
         ]
 
-    if status_filter:
-        docs = [d for d in docs if (d.get("current_status") or "") == status_filter]
-
-    docs = sorted(
+    docs = _filter_documents_by_status(
         docs,
-        key=lambda d: ((d.get("last_completed_at") or d.get("created_at") or ""), d.get("file_name") or ""),
-        reverse=(sort_order != "old"),
+        status_filter,
+        session.get("user_email"),
+        session.get("user_name"),
     )
+
+    docs = _sort_documents(docs, sort_order)
 
     status_options = sorted({(d.get("current_status") or "") for d in list_documents(conn) if d.get("current_status")})
 
@@ -233,7 +321,7 @@ def _build_report_data():
         if latest_updates:
             latest_update = latest_updates[-1]
             latest_user = latest_update.get("user_name", "-")
-            latest_date = (latest_update.get("completed_at", "") or "-").replace("T", " ")
+            latest_date = latest_update.get("completed_at", "") or "-"
 
         report_data.append({
             "file_name": d.get("file_name", "-"),
@@ -486,14 +574,12 @@ def add_document_page():
         call_number = request.form.get("call_number", "").strip()
         collection = request.form.get("collection", "").strip()
         title = request.form.get("title", "").strip()
-        publish_date = request.form.get("publish_date", "")
-        file_path = request.form.get("file_path", "").strip()
+        publish_date_raw = request.form.get("publish_date", "").strip()
         actor_name = (session.get("user_name") or "").strip()
         actor_email = (session.get("user_email") or "").strip().lower()
 
-        publish_date = int(publish_date) if publish_date else None
-
         try:
+            publish_date = int(publish_date_raw) if publish_date_raw else None
             add_document(
                 conn,
                 file_name,
@@ -503,15 +589,22 @@ def add_document_page():
                 collection,
                 title,
                 publish_date,
-                file_path,
+                "",
                 actor_email,
             )
-            return redirect(url_for("process_tracking_page", file_name=file_name, source="new"))
+            return redirect(url_for("process_tracking_page", file_name=file_name, source="new", message="created"))
         except sqlite3.IntegrityError as e:
-            error_msg = "Document with this file_name already exists"
+            error_msg = "ไม่สามารถเพิ่มเอกสารได้ เนื่องจากมีรหัสเอกสารนี้อยู่แล้ว"
             return render_template(
                 "add_document.html",
                 error=error_msg,
+                actor_name=actor_name,
+                collection_options=list_collection_options(conn),
+            )
+        except ValueError:
+            return render_template(
+                "add_document.html",
+                error="ปีที่พิมพ์ต้องเป็นตัวเลข พ.ศ. เท่านั้น",
                 actor_name=actor_name,
                 collection_options=list_collection_options(conn),
             )
@@ -520,6 +613,7 @@ def add_document_page():
         "add_document.html",
         actor_name=session.get("user_name"),
         collection_options=list_collection_options(conn),
+        message=request.args.get("message", "").strip().lower(),
     )
 
 
@@ -594,6 +688,7 @@ def process_tracking_page(file_name):
                 publish_date,
                 request.form.get("file_path", "").strip(),
             )
+            return redirect(url_for("process_tracking_page", file_name=file_name, source="update", message="saved"))
 
         if action == "update_status":
             selected_status = request.form.get("status", "").strip()
@@ -613,8 +708,9 @@ def process_tracking_page(file_name):
                     note,
                     session.get("user_email"),
                 )
+                return redirect(url_for("process_tracking_page", file_name=file_name, source="update", message="saved"))
 
-        return redirect(url_for("process_tracking_page", file_name=file_name, source="update"))
+        return redirect(url_for("process_tracking_page", file_name=file_name, source="update", error="save_failed"))
 
     updates = list_document_updates(conn, file_name)
     updates_asc = sorted(updates, key=lambda u: u.get("transaction_id") or 0)
@@ -667,16 +763,27 @@ def process_tracking_page(file_name):
         collection_options=list_collection_options(conn),
         can_edit_detail=session.get("user_role") == "Admin",
         users=list_users(conn) if session.get("user_role") == "Admin" else [],
+        message=request.args.get("message", "").strip().lower(),
+        error=request.args.get("error", "").strip().lower(),
     )
 
 
 # ==================== Management Routes ====================
 
-@app.route("/settings", methods=["GET"])
+@app.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings_page():
     """Display settings page for all users."""
     current_email = session.get("user_email", "")
+
+    if request.method == "POST":
+        new_password = request.form.get("new_password", "")
+        try:
+            update_user_password(conn, current_email, new_password)
+        except ValueError:
+            return redirect(url_for("settings_page", error="invalid_password"))
+        return redirect(url_for("settings_page", message="password_saved"))
+
     account = get_user_by_email(conn, current_email) if current_email else None
     if not account:
         account = {
@@ -688,13 +795,14 @@ def settings_page():
 
     created_at = account.get("created_at") or "-"
     if created_at and created_at != "-":
-        created_at = str(created_at).replace("T", " ")
+        created_at = str(created_at)
 
     return render_template(
         "setting.html",
         account=account,
-        masked_password="********",
         created_at_display=created_at,
+        message=request.args.get("message", "").strip().lower(),
+        error=request.args.get("error", "").strip().lower(),
     )
 
 
@@ -705,7 +813,7 @@ def system_management_page():
     if request.method == "POST":
         raw_options = request.form.getlist("collection_options")
         replace_collection_options(conn, raw_options)
-        return redirect(url_for("system_management_page"))
+        return redirect(url_for("system_management_page", message="saved"))
 
     mode = request.args.get("mode", "view").strip().lower()
     is_edit_mode = mode == "edit"
@@ -713,6 +821,7 @@ def system_management_page():
         "system_management.html",
         collection_options=list_collection_options(conn),
         is_edit_mode=is_edit_mode,
+        message=request.args.get("message", "").strip().lower(),
     )
 
 
@@ -792,9 +901,10 @@ def user_management_page():
                         request.form.get("user_name", "").strip(),
                         request.form.get("role", "Staff").strip() or "Staff",
                         request.form.get("account_status", "Active").strip() or "Active",
+                        request.form.get("password", ""),
                     )
-                except sqlite3.IntegrityError:
-                    error_message = "ไม่สามารถอัปเดตข้อมูลบัญชีได้ กรุณาตรวจสอบชื่อบัญชีและอีเมล"
+                except (sqlite3.IntegrityError, ValueError):
+                    error_message = "ไม่สามารถอัปเดตข้อมูลบัญชีได้ กรุณาตรวจสอบชื่อบัญชี อีเมล และรหัสผ่าน"
                 else:
                     return redirect(url_for("user_management_page", message="updated"))
 

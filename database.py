@@ -539,21 +539,39 @@ def update_user_account(
     user_name: str,
     role: str,
     account_status: str,
+    password: str = "",
 ) -> None:
     """Update basic account information except password."""
-    conn.execute(
-        """
-        UPDATE users
-        SET user_name = ?, role = ?, account_status = ?
-        WHERE email = ?
-        """,
-        (
-            user_name.strip(),
-            role,
-            account_status if account_status in {"Active", "Inactive"} else "Active",
-            current_email.strip().lower(),
-        ),
-    )
+    if password.strip():
+        _validate_password(password)
+        conn.execute(
+            """
+            UPDATE users
+            SET user_name = ?, role = ?, account_status = ?, password = ?
+            WHERE email = ?
+            """,
+            (
+                user_name.strip(),
+                role,
+                account_status if account_status in {"Active", "Inactive"} else "Active",
+                hash_password(password.strip()),
+                current_email.strip().lower(),
+            ),
+        )
+    else:
+        conn.execute(
+            """
+            UPDATE users
+            SET user_name = ?, role = ?, account_status = ?
+            WHERE email = ?
+            """,
+            (
+                user_name.strip(),
+                role,
+                account_status if account_status in {"Active", "Inactive"} else "Active",
+                current_email.strip().lower(),
+            ),
+        )
     conn.commit()
 
 
@@ -581,6 +599,16 @@ def admin_reset_user_password(conn: sqlite3.Connection, email: str, new_password
     conn.execute(
         "UPDATE users SET password = ? WHERE email = ?",
         (hash_password(new_password), email.strip().lower()),
+    )
+    conn.commit()
+
+
+def update_user_password(conn: sqlite3.Connection, email: str, new_password: str) -> None:
+    """Update a user's password."""
+    _validate_password(new_password)
+    conn.execute(
+        "UPDATE users SET password = ? WHERE email = ?",
+        (hash_password(new_password.strip()), email.strip().lower()),
     )
     conn.commit()
 
@@ -697,10 +725,12 @@ def list_documents(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             d.file_path,
             d.created_at,
             COALESCE(pt.status, 'Pending') AS current_status,
-            pt.completed_at AS last_completed_at
+            pt.completed_at AS last_completed_at,
+            COALESCE(pt.updated_by, d.user_name) AS latest_user_name,
+            COALESCE(pt.updated_by_email, '') AS latest_user_email
         FROM documents d
         LEFT JOIN (
-            SELECT p1.file_name, p1.status, p1.completed_at
+            SELECT p1.file_name, p1.status, p1.completed_at, p1.updated_by, p1.updated_by_email
             FROM process_tracking p1
             INNER JOIN (
                 SELECT file_name, MAX(transaction_id) AS max_id

@@ -6,30 +6,37 @@
 <section class="card report-card">
 	<style>
 		.report-container {
-			display: grid;
-			grid-template-columns: 1fr 1px 380px;
+			display: flex;
+			flex-direction: column;
 			gap: 24px;
 			margin: 0;
 		}
 
 		.report-divider {
-			background: #d7dbe1;
-			border-radius: 99px;
+			display: none;
 		}
 
 		.preview-section {
 			min-width: 0;
+			display: flex;
+			justify-content: center;
 		}
 
 		.a4-preview {
-			background: #fff;
-			border: 1px solid #ccc;
+			background: #fff !important;
+			border: 1px solid #1f2022;
 			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 			padding: 20px;
-			width: 100%;
-			max-width: 820px;
+			width: min(794px, 100%);
+			max-width: 794px;
 			margin: 0 auto;
 			box-sizing: border-box;
+			overflow: hidden;
+		}
+
+		.a4-table-wrap {
+			width: 100%;
+			overflow: hidden;
 		}
 
 		.a4-title {
@@ -49,39 +56,57 @@
 
 		.a4-table {
 			width: 100%;
-			border-collapse: collapse;
-			font-size: 13px;
-		}
-
-		.a4-table thead {
-			background: #f0f0f0;
-			border: 1px solid #999;
+			border-collapse: collapse !important;
+			table-layout: fixed;
+			font-size: 12px;
+			background: #fff !important;
 		}
 
 		.a4-table thead th {
-			border: 1px solid #999;
+			border: 1px solid #1f2022;
 			padding: 8px 6px;
 			text-align: center;
 			font-weight: 600;
-			color: #1f2022;
+			color: #000;
 			line-height: 1.2;
+			background: #f2f2f2 !important;
+			font-size: 12px;
 		}
 
 		.a4-table tbody td {
-			border: 1px solid #999;
+			border: 1px solid #1f2022;
 			padding: 6px;
-			text-align: left;
-			color: #2f3133;
+			text-align: center;
+			color: #000;
+			font-size: 12px;
 			word-wrap: break-word;
 			overflow-wrap: break-word;
+			background: #fff !important;
 		}
 
-		.a4-table tbody tr:nth-child(even) {
-			background: #fafafa;
+		.a4-table tbody tr:nth-child(odd) td,
+		.a4-table tbody tr:nth-child(even) td {
+			background: #fff !important;
+		}
+
+		.a4-table .file-name-cell {
+			font-size: 12px;
+			color: #000;
+			text-align: left;
+		}
+
+		.a4-table .dt-time {
+			font-size: 11px;
+			color: #000;
 		}
 
 		.options-section {
 			min-width: 0;
+			max-width: 820px;
+			margin: 0 auto;
+			width: 100%;
+			padding-top: 4px;
+			border-top: 1px solid #d7dbe1;
 		}
 
 		.option-title {
@@ -137,7 +162,7 @@
 			height: 44px;
 			border: 0;
 			border-radius: 10px;
-			background: #32cd32;
+			background: #24a0ed;
 			color: #fff;
 			font-size: 16px;
 			font-family: "Kanit", sans-serif;
@@ -148,11 +173,11 @@
 		}
 
 		.download-btn:hover {
-			background: #28a828;
+			background: #1d8fd5;
 		}
 
 		.download-btn:active {
-			background: #209620;
+			background: #167bb7;
 		}
 
 		.preview-btn {
@@ -211,17 +236,25 @@
 			margin: 0;
 		}
 
-		@media (max-width: 1200px) {
-			.report-container {
-				grid-template-columns: 1fr;
-			}
+		.report-title-stack {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+		}
 
-			.report-divider {
-				display: none;
-			}
-
+		@media (max-width: 860px) {
 			.a4-preview {
-				max-width: 100%;
+				padding: 14px;
+			}
+
+			.a4-table {
+				font-size: 11px;
+			}
+
+			.a4-table thead th,
+			.a4-table tbody td,
+			.a4-table .file-name-cell {
+				font-size: 11px;
 			}
 		}
 	</style>
@@ -232,6 +265,7 @@
 			<div class="a4-preview">
 				<div class="a4-title">รายงานกระบวนการแปลงหนังสือทรงคุณค่า หนังสือหายาก และเอกสารโบราณเป็นดิจิทัลและการจัดทำหนังสืออิเล็กทรอนิกส์</div>
 				<div class="a4-filter-note">ตัวกรองปัจจุบัน: {{ selected_filter_label }}</div>
+				<div class="a4-table-wrap">
 				<table class="a4-table">
 					<thead>
 						<tr>
@@ -252,15 +286,15 @@
 							{% for doc in report_data %}
 							<tr>
 								<td>{{ loop.index }}</td>
-								<td>{{ doc.file_name or '-' }}</td>
+								<td class="file-name-cell">{{ doc.file_name or '-' }}</td>
 								<td>{{ doc.bib or '-' }}</td>
 								<td>{{ doc.call_number or '-' }}</td>
 								<td>{{ doc.collection or '-' }}</td>
-								<td>{{ doc.title or '-' }}</td>
+								<td style="text-align: left;">{{ doc.title or '-' }}</td>
 								<td>{{ doc.publish_date or '-' }}</td>
 								<td>{{ doc.latest_status or '-' }}</td>
 								<td>{{ doc.latest_user or '-' }}</td>
-								<td>{{ doc.latest_date or '-' }}</td>
+								<td>{% if doc.latest_date and doc.latest_date != '-' %}{{ doc.latest_date|display_date }}<br><span class="dt-time">{{ doc.latest_date|display_time }}</span>{% else %}-{% endif %}</td>
 							</tr>
 							{% endfor %}
 						{% else %}
@@ -270,6 +304,7 @@
 						{% endif %}
 					</tbody>
 				</table>
+				</div>
 			</div>
 		</div>
 

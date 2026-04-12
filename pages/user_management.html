@@ -156,25 +156,35 @@
     }
 
     .user-table {
-      width: 100%;
-      border-collapse: collapse;
+      table-layout: fixed;
     }
 
-    .user-table th {
-      color: #58595b;
-      font-size: 14px;
-      font-weight: 500;
-      text-align: left;
-      padding: 12px 10px;
-      border-bottom: 1px solid #dfe3e8;
+    .user-table .col-name {
+      width: 220px;
+    }
+
+    .user-table .col-email {
+      width: 260px;
+    }
+
+    .user-table .col-created {
+      width: 150px;
+    }
+
+    .user-table .col-status {
+      width: 170px;
+    }
+
+    .user-table .col-actions {
+      width: 240px;
     }
 
     .user-table td {
-      padding: 14px 10px;
-      font-size: 15px;
-      color: #2f3133;
-      border-bottom: 1px solid #edf0f3;
       vertical-align: middle;
+    }
+
+    .user-table .left-cell {
+      text-align: left;
     }
 
     .number-col {
@@ -209,6 +219,7 @@
 
     .manage-actions {
       display: flex;
+      justify-content: center;
       gap: 8px;
       flex-wrap: wrap;
     }
@@ -240,13 +251,10 @@
       background: #58595b;
     }
 
-    .mini-btn.reset {
-      background: #f79646;
-    }
-
     .self-note {
       color: #8a8f95;
       font-size: 13px;
+      text-align: center;
     }
 
     .readonly-input {
@@ -318,7 +326,51 @@
       background: #eceff3;
       color: #58595b;
     }
+
+    .inactive-row td {
+      background: #58595b;
+      color: #fff;
+    }
+
+    .inactive-row td:first-child {
+      border-top-left-radius: 8px;
+      border-bottom-left-radius: 8px;
+    }
+
+    .inactive-row td:last-child {
+      border-top-right-radius: 8px;
+      border-bottom-right-radius: 8px;
+    }
+
+    .inactive-row .status-pill.inactive {
+      background: #fff;
+      color: #58595b;
+    }
+
+    .inactive-row .mini-btn.edit {
+      background: #24a0ed;
+    }
+
+    .inactive-row .mini-btn.suspend {
+      background: #2f3133;
+    }
   </style>
+
+  {% if message == 'created' %}
+  <div class="page-alert-placeholder" data-page-alert-message="เพิ่มบัญชีผู้ใช้ใหม่เรียบร้อยแล้ว"></div>
+  {% elif message == 'updated' %}
+  <div class="page-alert-placeholder" data-page-alert-message="อัปเดตข้อมูลบัญชีเรียบร้อยแล้ว"></div>
+  {% elif message == 'deleted' %}
+  <div class="page-alert-placeholder" data-page-alert-message="ลบบัญชีผู้ใช้เรียบร้อยแล้ว"></div>
+  {% elif message == 'status' %}
+  <div class="page-alert-placeholder" data-page-alert-message="อัปเดตสถานะบัญชีเรียบร้อยแล้ว"></div>
+  {% elif message == 'password_reset' %}
+  <div class="page-alert-placeholder" data-page-alert-message="รีเซ็ตรหัสผ่านเรียบร้อยแล้ว"></div>
+  {% endif %}
+
+  {% if error_message %}
+  <div class="page-alert-placeholder" data-page-alert-message="{{ error_message }}"></div>
+  {% endif %}
 
   <div class="top-bar">
     <a class="primary-btn" href="{{ url_for('create_account_page') }}">
@@ -370,6 +422,12 @@
           <label for="password">รหัสผ่าน</label>
           <input id="password" name="password" type="password" required>
           <p class="field-hint">รหัสผ่านต้องเป็นตัวอักษรและตัวเลข จำนวน 8 ตัว (A-Z, a-z, 0-9)</p>
+        </div>
+        {% else %}
+        <div class="form-stack">
+          <label for="password">รหัสผ่านใหม่</label>
+          <input id="password" name="password" type="password" placeholder="เว้นว่างหากไม่ต้องการเปลี่ยนรหัสผ่าน">
+          <p class="field-hint">เปลี่ยนรหัสผ่านได้เฉพาะตอนกดแก้ไขข้อมูลบัญชี</p>
         </div>
         {% endif %}
 
@@ -423,46 +481,38 @@
     </div>
   </form>
 
-  <table class="user-table">
+  <table class="pattern-table user-table">
     <thead>
       <tr>
         <th class="number-col">ลำดับที่</th>
-        <th>ชื่อบัญชีผู้ใช้งาน</th>
-        <th>อีเมล</th>
-        <th>วันที่สร้างบัญชี</th>
-        <th>สถานะบัญชี</th>
-        <th>จัดการบัญชี</th>
+        <th class="col-name">ชื่อบัญชีผู้ใช้งาน</th>
+        <th class="col-email">อีเมล</th>
+        <th class="col-created">วันที่สร้างบัญชี</th>
+        <th class="col-status">สถานะบัญชี</th>
+        <th class="col-actions">จัดการบัญชี</th>
       </tr>
     </thead>
     <tbody>
       {% for u in users %}
-      <tr>
+      <tr class="{{ 'inactive-row' if (u.account_status or 'Active') == 'Inactive' else '' }}">
         <td class="number-col">{{ loop.index }}</td>
-        <td>{{ u.user_name }}</td>
-        <td>{{ u.email }}</td>
-        <td class="date-cell">{{ (u.created_at or '-')|replace('T', ' ') }}</td>
+        <td class="left-cell">{{ u.user_name }}</td>
+        <td class="left-cell">{{ u.email }}</td>
+        <td class="date-cell">{{ u.created_at|display_date if u.created_at else '-' }}</td>
         <td>
           <span class="status-pill {{ 'active' if (u.account_status or 'Active') == 'Active' else 'inactive' }}">
             {{ account_status_labels.get(u.account_status or 'Active', account_status_labels['Active']) }}
           </span>
         </td>
         <td>
-          {% if u.email == session.get('user_email') %}
-          <span class="self-note">ไม่สามารถจัดการบัญชีที่กำลังใช้งานอยู่ได้</span>
-          {% else %}
           <div class="manage-actions">
             <a class="mini-btn edit" style="text-decoration: none; display: inline-flex; align-items: center;" href="{{ url_for('user_management_page', edit=u.email) }}">แก้ไข</a>
 
+            {% if u.email != session.get('user_email') %}
             <form class="mini-form" method="post" action="{{ url_for('user_management_page') }}">
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="email" value="{{ u.email }}">
               <button class="mini-btn delete" type="submit">ลบ</button>
-            </form>
-
-            <form class="mini-form js-reset-password-form" method="post" action="{{ url_for('user_management_page') }}" data-account-name="{{ u.user_name }}">
-              <input type="hidden" name="action" value="reset_password">
-              <input type="hidden" name="email" value="{{ u.email }}">
-              <button class="mini-btn reset" type="submit">รีเซ็ตรหัสผ่าน</button>
             </form>
 
             <form class="mini-form js-suspend-form" method="post" action="{{ url_for('user_management_page') }}" data-account-name="{{ u.user_name }}">
@@ -471,8 +521,10 @@
               <input type="hidden" name="target_status" value="{{ 'Inactive' if (u.account_status or 'Active') == 'Active' else 'Active' }}">
               <button class="mini-btn suspend" type="submit">{{ 'ระงับ' if (u.account_status or 'Active') == 'Active' else 'เปิดใช้งาน' }}</button>
             </form>
+            {% else %}
+            <span class="self-note">บัญชีที่กำลังใช้งานอยู่แก้ไขได้ แต่ไม่สามารถลบหรือระงับได้</span>
+            {% endif %}
           </div>
-          {% endif %}
         </td>
       </tr>
       {% else %}
@@ -483,16 +535,6 @@
     </tbody>
   </table>
 </section>
-
-<div class="confirm-modal" id="resetPasswordConfirmModal" aria-hidden="true">
-  <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="resetPasswordConfirmMessage">
-    <p class="confirm-message" id="resetPasswordConfirmMessage">คุณต้องการยืนยันการรีเซ็ตรหัสผ่านของ <strong id="resetPasswordAccountName"></strong> หรือไม่ (รหัสผ่านเริ่มต้น: 12345678)</p>
-    <div class="confirm-actions">
-      <button class="confirm-btn submit" type="button" id="confirmResetButton">ยืนยัน</button>
-      <button class="confirm-btn cancel" type="button" id="cancelResetButton">ยกเลิก</button>
-    </div>
-  </div>
-</div>
 
 <div class="confirm-modal" id="suspendConfirmModal" aria-hidden="true">
   <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="suspendConfirmMessage">
@@ -506,45 +548,6 @@
 
 <script>
   (function () {
-    // Reset password modal
-    const resetModal = document.getElementById("resetPasswordConfirmModal");
-    const resetAccountNameNode = document.getElementById("resetPasswordAccountName");
-    const confirmResetButton = document.getElementById("confirmResetButton");
-    const cancelResetButton = document.getElementById("cancelResetButton");
-    const resetPasswordForms = document.querySelectorAll(".js-reset-password-form");
-    let pendingResetForm = null;
-
-    function closeResetModal() {
-      resetModal.classList.remove("is-open");
-      resetModal.setAttribute("aria-hidden", "true");
-      pendingResetForm = null;
-    }
-
-    resetPasswordForms.forEach(function (form) {
-      form.addEventListener("submit", function (event) {
-        event.preventDefault();
-        pendingResetForm = form;
-        resetAccountNameNode.textContent = form.dataset.accountName || "";
-        resetModal.classList.add("is-open");
-        resetModal.setAttribute("aria-hidden", "false");
-      });
-    });
-
-    confirmResetButton.addEventListener("click", function () {
-      if (pendingResetForm) {
-        pendingResetForm.submit();
-      }
-    });
-
-    cancelResetButton.addEventListener("click", closeResetModal);
-
-    resetModal.addEventListener("click", function (event) {
-      if (event.target === resetModal) {
-        closeResetModal();
-      }
-    });
-
-    // Suspend status modal
     const modal = document.getElementById("suspendConfirmModal");
     const accountNameNode = document.getElementById("suspendAccountName");
     const confirmButton = document.getElementById("confirmSuspendButton");
