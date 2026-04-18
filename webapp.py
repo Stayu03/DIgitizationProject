@@ -31,6 +31,8 @@ from database import (
 
 # Use pages/ as Jinja template folder to match current project structure.
 app = Flask(__name__, template_folder="pages")
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
 app.secret_key = "your-secret-key-change-in-production"
 
 PROCESS_STATUSES = [
@@ -786,7 +788,7 @@ def process_tracking_page(file_name):
         breadcrumb=breadcrumb,
         is_new_case=is_new_case,
         timeline=timeline,
-        latest_status=latest_status or PROCESS_STATUSES[0],
+        latest_status=latest_status or "-",
         latest_note=(latest_update.get("note") if latest_update else "") or "",
         process_statuses=PROCESS_STATUSES,
         collection_options=list_collection_options(conn),
