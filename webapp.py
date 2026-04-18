@@ -772,7 +772,7 @@ def process_tracking_page(file_name):
                 "status": status_name,
                 "state": state,
                 "is_top": idx % 2 == 0,
-                "update": latest_by_status.get(status_name),
+                "status_update": latest_by_status.get(status_name),
             }
         )
 

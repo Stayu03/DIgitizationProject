@@ -131,6 +131,26 @@
       filter: brightness(0.96);
     }
 
+    .cancel-btn {
+      border: 0;
+      border-radius: 10px;
+      background: #dc3545;
+      color: #fff;
+      min-height: 44px;
+      padding: 0 16px;
+      font-family: "Kanit", sans-serif;
+      font-size: 16px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 3px 10px rgba(220, 53, 69, 0.26);
+    }
+
+    .cancel-btn:hover {
+      filter: brightness(0.96);
+    }
+
     .refresh-icon {
       width: 18px;
       height: 18px;
@@ -178,7 +198,7 @@
 
     <div class="action-panel">
       {% if is_edit_mode %}
-      <a href="{{ url_for('system_management_page') }}" class="update-btn" style="text-decoration: none;">
+      <a href="{{ url_for('system_management_page') }}" class="cancel-btn" style="text-decoration: none;">
         <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13H5v-2h14v2z"/></svg>
         <span>ยกเลิก</span>
       </a>

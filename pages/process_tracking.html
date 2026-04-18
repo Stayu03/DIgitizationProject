@@ -27,76 +27,81 @@
 
 		.timeline-scroll {
 			overflow-x: visible;
-			padding-bottom: 0;
-			margin-bottom: 24px;
+			overflow-y: visible;
+			padding-bottom: 8px;
 		}
 
-		.timeline {
+		.timeline-container {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
 			position: relative;
-			--timeline-line-y: 146px;
-			--line-box-gap: 42px;
+			--timeline-line-y: 214px;
+			--line-box-gap: 40px;
 			--box-detail-gap: 10px;
 			width: 100%;
 			min-width: 0;
-			padding: 20px 0;
-			height: 324px;
+			padding: 20px 0 20px;
+			height: auto;
+			min-height: 520px;
 		}
 
 		.timeline-line {
 			position: absolute;
-			left: 22px;
-			right: 22px;
-			top: var(--timeline-line-y);
-			height: 4px;
+			left: 50%;
+			top: 0;
+			bottom: 0;
+			width: 4px;
+			height: calc(100% - 40px);
 			background: #de5c8e;
 			border-radius: 999px;
-		}
-
-		.timeline-start,
-		.timeline-end {
-			position: absolute;
-			top: calc(var(--timeline-line-y) - 24px);
-			font-size: 16px;
-			font-weight: 500;
-			color: #de5c8e;
-			background: #fff;
-			padding: 0 4px;
-		}
-
-		.timeline-start {
-			left: 0;
-		}
-
-		.timeline-end {
-			right: 0;
+			z-index: 1;
+			transform: translateX(-50%);
 		}
 
 		.timeline-steps {
 			position: relative;
 			display: flex;
+			flex-direction: column;
+			align-items: center;
 			justify-content: space-between;
-			gap: 4px;
-			margin: 0 24px;
 			height: 100%;
+			width: 100%;
+			z-index: 2;
 		}
 
 		.timeline-step {
 			position: relative;
-			flex: 1 1 0;
-			min-width: 0;
+			width: 100%;
+			min-height: 80px;
+			display: flex;
+			flex-direction: row;
+			align-items: center;
+			justify-content: center;
 		}
 
-		.timeline-dot {
-			position: absolute;
-			left: 50%;
-			top: var(--timeline-line-y);
-			transform: translate(-50%, -50%);
+        .timeline-steps {
+			position: relative;
+			display: flex;
+			justify-content: space-between;
+			gap: 2px;
+			margin: 0 14px;
+			height: 100%;
+		}
+
+        .timeline-dot {
+			position: relative;
+			left: 0;
+			top: 0;
+			transform: none;
 			width: 12px;
 			height: 12px;
 			border-radius: 999px;
 			background: #de5c8e;
 			border: 2px solid #fff;
 			box-shadow: 0 0 0 1px #de5c8e;
+			z-index: 3;
+			margin: 0 auto;
 		}
 
 		.status-box {
@@ -110,17 +115,19 @@
 			height: auto;
 			min-height: 66px;
 			border-radius: 10px;
-			border: 1px solid #000;
-			background: #fff;
-			color: #000;
-			font-size: 15px;
+			border: 1px solid #de5c8e;
+			background: #de5c8e;
+			color: #fff;
+			font-size: 16px;
 			font-weight: 500;
 			line-height: 1.25;
 			text-align: center;
 			padding: 8px 10px;
 			display: flex;
+			flex-direction: row;
 			align-items: center;
 			justify-content: center;
+			gap: 0;
 			cursor: pointer;
 		}
 
@@ -133,36 +140,57 @@
 
 		.timeline-step.is-top .status-box {
 			top: auto;
-			bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap));
+			bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap) + 88px);
+		}
+
+		.timeline-step.is-top .status-name-box {
+			top: auto;
+			bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap) + 88px);
 		}
 
 		.timeline-step.is-bottom .status-box {
 			bottom: auto;
-			top: calc(var(--timeline-line-y) + var(--line-box-gap));
+			top: calc(var(--timeline-line-y) + var(--line-box-gap) + 88px);
 		}
 
-		.status-box.is-past {
-			background: #000;
-			color: #fff;
-			border-color: #000;
+		.timeline-step.is-bottom .status-name-box {
+			bottom: auto;
+			top: calc(var(--timeline-line-y) + var(--line-box-gap) + 88px);
 		}
 
-		.status-box.is-current {
-			background: #de5c8e;
-			color: #fff;
-			border-color: #de5c8e;
+		.timeline-step.is-last .status-box {
+			left: calc(50% - 14px);
+		}
+
+		.timeline-step.is-last .status-name-box {
+			left: calc(50% - 14px);
+		}
+
+		.timeline-step.is-last.is-top .status-name-box {
+			bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap) + 100px);
+		}
+
+		.timeline-step.is-last.is-bottom .status-name-box {
+			top: calc(var(--timeline-line-y) + var(--line-box-gap) + 100px);
 		}
 
 		.meta-wrap {
-			position: absolute;
-			left: 0;
-			top: 0;
-			transform: none;
-			width: fit-content;
-			max-width: calc(100% - 8px);
-			display: flex;
-			flex-direction: column;
-			gap: 5px;
+ 			position: absolute;
+ 			left: 0;
+ 			top: 0;
+ 			transform: none;
+ 			min-width: 180px;
+ 			max-width: 320px;
+ 			width: max-content;
+ 			box-sizing: border-box;
+ 			padding: 4px 10px 4px 10px;
+ 			background: rgba(255,255,255,0.95);
+ 			border-radius: 10px;
+ 			box-shadow: 0 2px 8px rgba(47,49,51,0.08);
+ 			display: flex;
+ 			flex-direction: column;
+ 			gap: 5px;
+ 			z-index: 2;
 		}
 
 		.timeline-step.is-bottom .meta-wrap {
@@ -201,9 +229,12 @@
 		}
 
 		.meta-text {
-			min-width: 0;
-			overflow: hidden;
-			text-overflow: ellipsis;
+ 			min-width: 0;
+ 			white-space: normal;
+ 			overflow-wrap: anywhere;
+ 			word-break: break-word;
+ 			font-size: 13px;
+ 			line-height: 1.4;
 		}
 
 		.bottom-layout {
@@ -438,6 +469,20 @@
 		.status-detail-value {
 			color: #2f3133;
 		}
+
+		/* ให้ input เวลาสถานะสามารถพิมพ์ได้ (active) */
+		.status-form .status-field[name="status_time"] {
+			background: #fff;
+			color: #2f3133;
+			border: 1px solid #de5c8e;
+			pointer-events: auto;
+			user-select: auto;
+		}
+
+		/* ยกเลิก background เทาเฉพาะช่องเวลา */
+		.status-form .status-field:not([name="status_time"]) {
+			background: #e9e9e9;
+		}
 	</style>
 
 	{% if message == 'saved' %}
@@ -456,31 +501,28 @@
 	</div>
 
 	<div class="timeline-scroll">
-		<div class="timeline">
+		<div class="timeline-container">
 			<div class="timeline-line"></div>
 			<div class="timeline-start">เริ่ม</div>
 			<div class="timeline-end">จบ</div>
-
 			<div class="timeline-steps">
 				{% for item in timeline %}
-				<div class="timeline-step {% if item.is_top %}is-top{% else %}is-bottom{% endif %}">
-					{% set update = item.update %}
-					<div class="meta-wrap">
-						<div class="meta-row">
-							<span class="meta-badge done">วันที่/เวลา</span>
+				<div class="timeline-step {% if item.is_top %}is-top{% else %}is-bottom{% endif %} {% if loop.last %}is-last{% endif %}">
+					<div class="timeline-dot"></div>
+					<div class="status-name-box">
+						<div class="status-box-text status-count">
+							{% set update = item.status_update %}
 							{% if update and update.completed_at %}
-							<span class="meta-text">{{ update.completed_at|display_date }} {{ update.completed_at|display_time }}</span>
+								{{ update.completed_at|display_date }} {{ update.completed_at|display_time }}
 							{% else %}
-							<span class="meta-text">-</span>
+								-
 							{% endif %}
 						</div>
-						<div class="meta-row">
-							<span class="meta-badge owner">ผู้รับผิดชอบ</span>
-							<span class="meta-text">{{ (update.user_name if update else '-') or '-' }}</span>
+						<div class="status-box-text">
+							{{ (update.user_name if update else '-') or '-' }}
 						</div>
 					</div>
-
-					<div class="status-box js-status-box {% if item.state == 'past' %}is-past{% elif item.state == 'current' %}is-current{% endif %}"
+					<div class="status-box js-status-box"
 						data-status="{{ item.index }}. {{ item.status }}"
 						data-date="{{ update.completed_at|display_date if update and update.completed_at else '-' }}"
 						data-time="{{ update.completed_at|display_time if update and update.completed_at else '-' }}"
@@ -488,7 +530,6 @@
 						data-note="{{ (update.note if update else '-') or '-' }}">
 						<span class="status-text">{{ item.index }}. {{ item.status }}</span>
 					</div>
-					<div class="timeline-dot" aria-hidden="true"></div>
 				</div>
 				{% endfor %}
 			</div>
@@ -533,219 +574,201 @@
 					<span id="docInfoToggleText">แก้ไขข้อมูล</span>
 				</button>
 			</form>
-			{% else %}
-			<div class="info-form">
-				<div class="info-label">รหัสเอกสาร (FileName)</div>
-				<div class="info-value pk-value">{{ document.file_name or '-' }}</div>
-
-				<div class="info-label">Bib# (Biliographic Record)</div>
-				<div class="info-value">{{ document.bib or '-' }}</div>
-
-				<div class="info-label">เลขหนังสือ (CallNo)</div>
-				<div class="info-value">{{ document.call_number or '-' }}</div>
-
-				<div class="info-label">คอลเลกชัน (Collection)</div>
-				<div class="info-value">{{ document.collection or '-' }}</div>
-
-				<div class="info-label">ปีที่พิมพ์ (Published Date)</div>
-				<div class="info-value">{{ document.publish_date or '-' }}</div>
-
-				<div class="readonly-note">เฉพาะ Admin เท่านั้นที่แก้ไขข้อมูลเอกสารได้</div>
-			</div>
-			{% endif %}
-		</div>
-
-		<div class="middle-divider"></div>
-
-		<div>
-			<h2 class="part-title">การอัปเดตสถานะ</h2>
-			<form method="post" action="{{ url_for('process_tracking_page', file_name=document.file_name, source='update') }}" class="status-form{% if message == 'saved' %} is-saved{% endif %}" id="statusForm">
-				<input type="hidden" name="action" value="update_status">
-				<input type="hidden" name="completed_at" id="completedAt">
-
-				<div class="status-label">สถานะล่าสุดของเอกสาร</div>
-				<div class="status-field latest-status-field">{{ latest_status }}</div>
-
-				<div class="status-label">วันที่ดำเนินการเสร็จ</div>
-				<div class="datetime-row">
-					<input class="status-field" type="date" name="completed_date" id="completedDate">
-					<input class="status-field" type="time" name="completed_time" id="completedTime" step="60">
-				</div>
-
-				<div class="status-label">สถานะที่ต้องการอัปเดต</div>
-				<div class="radio-list">
-					{% for status in process_statuses %}
-					<label class="radio-item">
-						<input type="radio" name="status" value="{{ status }}" {% if loop.first %}checked{% endif %}>
-						<span>{{ loop.index }}. {{ status }}</span>
-					</label>
-					{% endfor %}
-				</div>
-
-				<div class="status-label">รายละเอียดเพิ่มเติม</div>
-				<textarea class="note-field" name="note" placeholder="กรอกรายละเอียดเพิ่มเติม...">{{ latest_note }}</textarea>
-
-				<button class="action-btn save-btn" type="submit">
-					<svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zM7 5h8v4H7V5zm12 14H5v-8h14v8z"/></svg>
-					<span>บันทึกข้อมูล</span>
-				</button>
-			</form>
-		</div>
-	</div>
-
-	<div class="status-detail-modal" id="statusDetailModal" aria-hidden="true">
-		<div class="status-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="statusDetailTitle">
-			<h3 class="status-detail-title" id="statusDetailTitle">รายละเอียดสถานะ</h3>
-			<div class="status-detail-row"><div class="status-detail-label">สถานะ</div><div class="status-detail-value" id="statusDetailStatus">-</div></div>
-			<div class="status-detail-row"><div class="status-detail-label">วันที่</div><div class="status-detail-value" id="statusDetailDate">-</div></div>
-			<div class="status-detail-row"><div class="status-detail-label">เวลา</div><div class="status-detail-value" id="statusDetailTime">-</div></div>
-			<div class="status-detail-row"><div class="status-detail-label">ผู้รับผิดชอบ</div><div class="status-detail-value" id="statusDetailUser">-</div></div>
-			<div class="status-detail-row"><div class="status-detail-label">หมายเหตุ</div><div class="status-detail-value" id="statusDetailNote">-</div></div>
-			<div style="margin-top: 16px; text-align: center;">
-				<button class="action-btn edit-btn" type="button" id="closeStatusDetailModal">ปิด</button>
-			</div>
-		</div>
-	</div>
-
-	<script>
-		(function () {
-			var modal = document.getElementById("statusDetailModal");
-			var closeButton = document.getElementById("closeStatusDetailModal");
-			var statusBoxes = document.querySelectorAll(".js-status-box");
-			var statusNode = document.getElementById("statusDetailStatus");
-			var dateNode = document.getElementById("statusDetailDate");
-			var timeNode = document.getElementById("statusDetailTime");
-			var userNode = document.getElementById("statusDetailUser");
-			var noteNode = document.getElementById("statusDetailNote");
-
-			function closeStatusModal() {
-				if (!modal) {
-					return;
+			<style>
+				.timeline-scroll {
+					overflow-x: visible;
+					overflow-y: visible;
+					padding-bottom: 8px;
 				}
-				modal.classList.remove("is-open");
-				modal.setAttribute("aria-hidden", "true");
-			}
-
-			statusBoxes.forEach(function (box) {
-				box.addEventListener("click", function () {
-					statusNode.textContent = box.dataset.status || "-";
-					dateNode.textContent = box.dataset.date || "-";
-					timeNode.textContent = box.dataset.time || "-";
-					userNode.textContent = box.dataset.user || "-";
-					noteNode.textContent = box.dataset.note || "-";
-					modal.classList.add("is-open");
-					modal.setAttribute("aria-hidden", "false");
-				});
-			});
-
-			if (closeButton) {
-				closeButton.addEventListener("click", closeStatusModal);
-			}
-
-			if (modal) {
-				modal.addEventListener("click", function (event) {
-					if (event.target === modal) {
-						closeStatusModal();
-					}
-				});
-			}
-
-			function alignTimelineMeta() {
-				var timelineEl = document.querySelector(".timeline");
-				var computedGap = timelineEl ? getComputedStyle(timelineEl).getPropertyValue("--box-detail-gap") : "";
-				var detailGap = Number.parseInt(computedGap, 10);
-				if (Number.isNaN(detailGap)) {
-					detailGap = 10;
+				.timeline-container {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					position: relative;
+					--timeline-line-y: 214px;
+					--line-box-gap: 40px;
+					--box-detail-gap: 10px;
+					width: 100%;
+					min-width: 0;
+					padding: 20px 0 20px;
+					height: auto;
+					min-height: 520px;
 				}
-				var steps = document.querySelectorAll(".timeline-step");
-				steps.forEach(function (step) {
-					var statusBox = step.querySelector(".status-box");
-					var metaWrap = step.querySelector(".meta-wrap");
-					if (!statusBox || !metaWrap) {
-						return;
-					}
-
-					var stepRect = step.getBoundingClientRect();
-					var boxRect = statusBox.getBoundingClientRect();
-					var metaRect = metaWrap.getBoundingClientRect();
-					var stepWidth = stepRect.width;
-					var leftOffset = boxRect.left - stepRect.left;
-					var maxLeft = Math.max(0, stepWidth - metaRect.width);
-					var clampedLeft = Math.min(Math.max(0, leftOffset), maxLeft);
-					metaWrap.style.left = clampedLeft + "px";
-
-					var boxTop = boxRect.top - stepRect.top;
-					var boxBottom = boxRect.bottom - stepRect.top;
-					var metaTop;
-					if (step.classList.contains("is-top")) {
-						metaTop = boxTop - metaRect.height - detailGap;
-					} else {
-						metaTop = boxBottom + detailGap;
-					}
-					metaWrap.style.top = metaTop + "px";
-				});
-			}
-
-			window.addEventListener("load", alignTimelineMeta);
-			window.addEventListener("resize", alignTimelineMeta);
-		})();
-	</script>
-
-	<script>
-		(function () {
-			var statusForm = document.getElementById("statusForm");
-			var completedDate = document.getElementById("completedDate");
-			var completedTime = document.getElementById("completedTime");
-			var completedAt = document.getElementById("completedAt");
-			if (!statusForm || !completedDate || !completedTime || !completedAt) {
-				return;
-			}
-
-			statusForm.addEventListener("submit", function () {
-				var dateValue = completedDate.value;
-				var timeValue = completedTime.value;
-				if (dateValue && timeValue) {
-					completedAt.value = dateValue + "T" + timeValue;
-				} else {
-					completedAt.value = "";
+				.timeline-line {
+					position: absolute;
+					left: 50%;
+					top: 0;
+					bottom: 0;
+					width: 4px;
+					height: calc(100% - 40px);
+					background: #de5c8e;
+					border-radius: 999px;
+					z-index: 1;
+					transform: translateX(-50%);
 				}
-			});
-		})();
-	</script>
-
-	{% if can_edit_detail %}
-	<script>
-		(function () {
-			var form = document.getElementById("docInfoForm");
-			var toggleBtn = document.getElementById("docInfoToggleBtn");
-			var toggleText = document.getElementById("docInfoToggleText");
-			var toggleIcon = document.getElementById("docInfoToggleIcon");
-			if (!form || !toggleBtn || !toggleText || !toggleIcon) {
-				return;
-			}
-
-			var editableInputs = form.querySelectorAll(".info-input");
-
-			toggleBtn.addEventListener("click", function (event) {
-				if (toggleBtn.dataset.mode === "view") {
-					event.preventDefault();
-					toggleBtn.dataset.mode = "edit";
-					form.classList.add("editing");
-					editableInputs.forEach(function (el) {
-						if (el.tagName.toLowerCase() === "select") {
-							el.removeAttribute("disabled");
-						} else {
+				.timeline-steps {
+					position: relative;
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: space-between;
+					height: 100%;
+					width: 100%;
+					z-index: 2;
+				}
+				.timeline-step {
+					position: relative;
+					width: 100%;
+					min-height: 80px;
+					display: flex;
+					flex-direction: row;
+					align-items: center;
+					justify-content: center;
+				}
+				.timeline-dot {
+					position: relative;
+					left: 0;
+					top: 0;
+					transform: none;
+					width: 12px;
+					height: 12px;
+					border-radius: 999px;
+					background: #de5c8e;
+					border: 2px solid #fff;
+					box-shadow: 0 0 0 1px #de5c8e;
+					z-index: 3;
+					margin: 0 auto;
+				}
+				.status-name-box {
+					position: absolute;
+					left: 50%;
+					transform: translateX(-50%);
+					width: calc(100% - 16px);
+					max-width: calc(100% - 16px);
+					min-width: 0;
+					box-sizing: border-box;
+					height: auto;
+					min-height: 52px;
+					border-radius: 8px;
+					border: 1px solid #de5c8e;
+					background: #fff;
+					color: #de5c8e;
+					font-size: 16px;
+					font-weight: 500;
+					line-height: 1.25;
+					text-align: center;
+					padding: 6px 7px;
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					gap: 3px;
+				}
+				.status-box {
+					position: absolute;
+					left: 50%;
+					transform: translateX(-50%);
+					width: fit-content;
+					max-width: calc(100% - 2px);
+					min-width: min(96px, calc(100% - 2px));
+					box-sizing: border-box;
+					height: auto;
+					min-height: 66px;
+					border-radius: 10px;
+					border: 1px solid #de5c8e;
+					background: #de5c8e;
+					color: #fff;
+					font-size: 16px;
+					font-weight: 500;
+					line-height: 1.25;
+					text-align: center;
+					padding: 8px 10px;
+					display: flex;
+					flex-direction: row;
+					align-items: center;
+					justify-content: center;
+					gap: 0;
+					cursor: pointer;
+				}
+				.status-text {
+					display: block;
+					max-width: 100%;
+					white-space: normal;
+					word-break: break-word;
+				}
+				.timeline-start,
+				.timeline-end {
+					position: absolute;
+					left: 50%;
+					transform: translateX(-50%);
+					font-size: 16px;
+					font-weight: 500;
+					color: #de5c8e;
+					background: #fff;
+					padding: 0 8px;
+					z-index: 4;
+				}
+				.timeline-start {
+					top: -28px;
+				}
+				.timeline-end {
+					bottom: -28px;
+				}
+				.timeline-step.is-top .status-name-box {
+					top: auto;
+					bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap) + 88px);
+				}
+				.timeline-step.is-top .status-box {
+					top: auto;
+					bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap));
+				}
+				.timeline-step.is-bottom .status-name-box {
+					bottom: auto;
+					top: calc(var(--timeline-line-y) + var(--line-box-gap) + 88px);
+				}
+				.timeline-step.is-bottom .status-box {
+					bottom: auto;
+					top: calc(var(--timeline-line-y) + var(--line-box-gap));
+				}
+				.timeline-step.is-last .status-box {
+					left: calc(50% - 14px);
+				}
+				.timeline-step.is-last .status-name-box {
+					left: calc(50% - 14px);
+				}
+				.timeline-step.is-last.is-top .status-name-box {
+					bottom: calc(100% - var(--timeline-line-y) + var(--line-box-gap) + 100px);
+				}
+				.timeline-step.is-last.is-bottom .status-name-box {
+					top: calc(var(--timeline-line-y) + var(--line-box-gap) + 100px);
+				}
+				@media (max-width: 768px) {
+					.timeline-container {
+						height: auto;
+						min-height: 520px;
+					}
+					.status-box {
+						font-size: 16px;
+						padding: 6px;
+					}
+					.status-name-box {
+						font-size: 16px;
+						padding: 6px;
+					}
+				}
+			</style>
 							el.removeAttribute("readonly");
-						}
-					});
-					toggleBtn.classList.remove("edit-btn");
-					toggleBtn.classList.add("save-btn");
-					toggleText.textContent = "บันทึกข้อมูล";
-					toggleIcon.innerHTML = '<path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zM7 5h8v4H7V5zm12 14H5v-8h14v8z"/>';
-				}
-			});
-		})();
-	</script>
-	{% endif %}
+		{% endif %}
+
+		<!-- input เวลาสถานะ (Status Time) แบบมาตรฐาน (อนุญาตให้พิมพ์) -->
+		{% if can_edit_status %}
+		<form method="post" action="{{ url_for('process_tracking_page', file_name=document.file_name, source='status_update') }}" class="status-form" id="statusForm">
+			<div class="status-label">เวลาสถานะ (Status Time)</div>
+			<input class="status-field" name="status_time" type="time" step="1" value="{{ status_time or '' }}">
+			<!-- ...ฟิลด์อื่น ๆ ของฟอร์ม... -->
+			<button class="action-btn save-btn" type="submit">บันทึกสถานะ</button>
+		</form>
+		{% endif %}
+	</div>
 </section>
 {% endblock %}
