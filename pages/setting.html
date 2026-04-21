@@ -124,11 +124,13 @@
   <div class="page-alert-placeholder" data-page-alert-message="หน้านี้ใช้สำหรับดูรหัสผ่านเท่านั้น ไม่สามารถแก้ไขได้ กรุณาเปลี่ยนรหัสผ่านที่หน้าจัดการบัญชีผู้ใช้งาน"></div>
   {% endif %}
 
+  <p class="password-help">ข้อมูลหน้านี้เป็นแบบอ่านอย่างเดียว หากเป็น Admin และต้องการแก้ไขข้อมูลผู้ใช้ ให้ดำเนินการที่หน้าจัดการบัญชีผู้ใช้งานเท่านั้น</p>
+
   <h2 class="setting-topic">ข้อมูลบัญชีผู้ใช้งาน</h2>
 
   <div class="setting-grid">
     <p class="field-label">ชื่อบัญชีผู้ใช้งาน</p>
-    <div class="field-box">{{ account.user_name or '-' }}</div>
+    <div class="field-box" id="accountUserName">{{ account.user_name or '-' }}</div>
 
     <p class="field-label">อีเมล</p>
     <div class="field-box">{{ account.email or '-' }}</div>
@@ -147,9 +149,9 @@
 
     <p class="field-label">หมายเหตุ</p>
     {% if account.note %}
-    <div class="field-box note-box">{{ account.note }}</div>
+    <div class="field-box note-box" id="accountNote">{{ account.note }}</div>
     {% else %}
-    <div class="field-box note-box note-empty">ไม่มีหมายเหตุ</div>
+    <div class="field-box note-box note-empty" id="accountNote">ไม่มีหมายเหตุ</div>
     {% endif %}
   </div>
 
@@ -157,13 +159,53 @@
     (function () {
       var toggleBtn = document.getElementById("togglePasswordBtn");
       var passwordField = document.getElementById("passwordField");
-      if (!toggleBtn || !passwordField) {
-        return;
+      if (toggleBtn && passwordField) {
+        toggleBtn.addEventListener("click", function () {
+          passwordField.type = passwordField.type === "password" ? "text" : "password";
+        });
       }
 
-      toggleBtn.addEventListener("click", function () {
-        passwordField.type = passwordField.type === "password" ? "text" : "password";
-      });
+      var userNameNode = document.getElementById("accountUserName");
+      var noteNode = document.getElementById("accountNote");
+
+      function renderLiveAccount(account) {
+        if (userNameNode) {
+          userNameNode.textContent = account.user_name || "-";
+        }
+
+        if (noteNode) {
+          var note = (account.note || "").trim();
+          if (note) {
+            noteNode.textContent = note;
+            noteNode.classList.remove("note-empty");
+          } else {
+            noteNode.textContent = "ไม่มีหมายเหตุ";
+            noteNode.classList.add("note-empty");
+          }
+        }
+      }
+
+      function refreshAccount() {
+        fetch("{{ url_for('api_my_account') }}?_ts=" + Date.now(), {
+          method: "GET",
+          headers: { "Cache-Control": "no-cache" },
+          credentials: "same-origin"
+        })
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error("failed to refresh account");
+            }
+            return response.json();
+          })
+          .then(renderLiveAccount)
+          .catch(function () {
+            // Keep current UI values if polling fails.
+          });
+      }
+
+      refreshAccount();
+      setInterval(refreshAccount, 3000);
+
     })();
   </script>
 </section>

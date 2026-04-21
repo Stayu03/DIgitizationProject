@@ -83,13 +83,19 @@
     }
 
     .form-stack input,
-    .form-stack select {
+    .form-stack select,
+    .form-stack textarea {
       min-height: 42px;
       border: 1px solid #d3d8de;
       border-radius: 10px;
       padding: 8px 12px;
       font-size: 15px;
       font-family: "Kanit", sans-serif;
+    }
+
+    .form-stack textarea {
+      min-height: 90px;
+      resize: vertical;
     }
 
     .form-actions {
@@ -169,7 +175,7 @@
     }
 
     .user-table .col-name {
-      width: auto;
+      width: 360px;
     }
 
     .user-table .col-email {
@@ -181,11 +187,15 @@
     }
 
     .user-table .col-status {
-      width: 185px;
+      width: 195px;
+    }
+
+    .user-table .col-note {
+      width: 130px;
     }
 
     .user-table .col-actions {
-      width: 185px;
+      width: 170px;
     }
 
     .user-table td {
@@ -203,6 +213,12 @@
 
     .date-cell {
       white-space: nowrap;
+    }
+
+    .note-cell {
+      text-align: left;
+      word-break: break-word;
+      color: #2f3133;
     }
 
     .status-pill {
@@ -320,6 +336,29 @@
       margin-top: 16px;
     }
 
+    .confirm-field {
+      margin-top: 14px;
+      text-align: left;
+    }
+
+    .confirm-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+      color: #2f3133;
+    }
+
+    .confirm-field input {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid #d3d8de;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: "Kanit", sans-serif;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+
     .confirm-btn {
       min-width: 96px;
       min-height: 38px;
@@ -364,6 +403,10 @@
     .inactive-row td:nth-child(2),
     .inactive-row td:nth-child(3),
     .inactive-row td:nth-child(4) {
+      color: #000;
+    }
+
+    .inactive-row .note-cell {
       color: #000;
     }
 
@@ -459,18 +502,41 @@
 
         <div class="form-stack">
           <label for="role">สิทธิ์ผู้ใช้งาน</label>
+          {% set is_self_admin_edit = edit_user and (edit_user.email == session.get('user_email')) and (edit_user.role == 'Admin') %}
+          {% if is_self_admin_edit %}
+          <input type="hidden" name="role" value="Admin">
+          <select id="role" name="role_display" disabled class="readonly-input">
+            <option value="Admin" selected>Admin</option>
+          </select>
+          <p class="field-hint">บัญชี Admin ที่กำลังใช้งานอยู่ไม่สามารถลดสิทธิ์ตัวเองเป็น Staff ได้</p>
+          {% else %}
           <select id="role" name="role">
             <option value="Staff" {% if edit_user and edit_user.role == 'Staff' %}selected{% endif %}>Staff</option>
             <option value="Admin" {% if edit_user and edit_user.role == 'Admin' %}selected{% endif %}>Admin</option>
           </select>
+          {% endif %}
         </div>
 
         <div class="form-stack">
           <label for="account_status">สถานะบัญชี</label>
+          {% if edit_user and edit_user.role == 'Admin' %}
+          <input type="hidden" name="account_status" value="Active">
+          <select id="account_status" name="account_status_display" disabled class="readonly-input">
+            <option value="Active" selected>กำลังใช้งาน (Active)</option>
+          </select>
+          <p class="field-hint">บัญชี Admin มีสถานะเป็น Active เท่านั้น</p>
+          {% else %}
           <select id="account_status" name="account_status">
             <option value="Active" {% if not edit_user or edit_user.account_status == 'Active' %}selected{% endif %}>กำลังใช้งาน (Active)</option>
             <option value="Inactive" {% if edit_user and edit_user.account_status == 'Inactive' %}selected{% endif %}>ถูกระงับการใช้งาน (Inactive)</option>
           </select>
+          {% endif %}
+        </div>
+
+        <div class="form-stack" style="grid-column: 1 / -1;">
+          <label for="note">หมายเหตุ</label>
+          <textarea id="note" name="note" placeholder="กรอกหมายเหตุที่ต้องการแสดงในหน้าการตั้งค่า">{{ edit_user.note if edit_user else '' }}</textarea>
+          <p class="field-hint">เฉพาะ Admin เท่านั้นที่สามารถแก้ไขหมายเหตุได้</p>
         </div>
       </div>
 
@@ -515,6 +581,7 @@
         <th class="col-email">อีเมล</th>
         <th class="col-created">วันที่สร้างบัญชี</th>
         <th class="col-status">สถานะบัญชี</th>
+        <th class="col-note">หมายเหตุ</th>
         <th class="col-actions">จัดการบัญชี</th>
       </tr>
     </thead>
@@ -530,23 +597,28 @@
             {{ account_status_labels.get(u.account_status or 'Active', account_status_labels['Active']) }}
           </span>
         </td>
+        <td class="note-cell">{{ u.note or '-' }}</td>
         <td>
           <div class="manage-actions">
             <a class="mini-btn edit" style="text-decoration: none; display: inline-flex; align-items: center;" href="{{ url_for('user_management_page', edit=u.email) }}">แก้ไข</a>
 
             {% if u.email != session.get('user_email') %}
-            <form class="mini-form" method="post" action="{{ url_for('user_management_page') }}">
+            <form class="mini-form js-delete-form" method="post" action="{{ url_for('user_management_page') }}" data-account-name="{{ u.user_name }}" data-account-email="{{ u.email }}">
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="email" value="{{ u.email }}">
               <button class="mini-btn delete" type="submit">ลบ</button>
             </form>
 
+            {% if u.role != 'Admin' %}
             <form class="mini-form js-suspend-form" method="post" action="{{ url_for('user_management_page') }}" data-account-name="{{ u.user_name }}">
               <input type="hidden" name="action" value="toggle_status">
               <input type="hidden" name="email" value="{{ u.email }}">
               <input type="hidden" name="target_status" value="{{ 'Inactive' if (u.account_status or 'Active') == 'Active' else 'Active' }}">
               <button class="mini-btn suspend" type="submit">{{ 'ระงับ' if (u.account_status or 'Active') == 'Active' else 'เปิดใช้งาน' }}</button>
             </form>
+            {% else %}
+            <span class="self-note">บัญชี Admin ไม่สามารถเปลี่ยนสถานะได้</span>
+            {% endif %}
             {% else %}
             <span class="self-note">บัญชีที่กำลังใช้งานอยู่แก้ไขได้ แต่ไม่สามารถลบหรือระงับได้</span>
             {% endif %}
@@ -555,7 +627,7 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="6">ไม่มีข้อมูลบัญชีผู้ใช้งาน</td>
+        <td colspan="7">ไม่มีข้อมูลบัญชีผู้ใช้งาน</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -572,19 +644,52 @@
   </div>
 </div>
 
+<div class="confirm-modal" id="deleteConfirmModal" aria-hidden="true">
+  <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmMessage">
+    <p class="confirm-message" id="deleteConfirmMessage">ยืนยันการลบบัญชีผู้ใช้งาน <strong id="deleteAccountName"></strong></p>
+    <form id="deleteConfirmForm" method="post" action="{{ url_for('user_management_page') }}">
+      <input type="hidden" name="action" value="delete">
+      <input type="hidden" name="email" id="deleteAccountEmail" value="">
+      <div class="confirm-field">
+        <label for="deleteAccountPassword">กรอกรหัสผ่านของคุณเพื่อยืนยัน</label>
+        <input id="deleteAccountPassword" type="password" name="password" placeholder="รหัสผ่านผู้ใช้" required>
+      </div>
+      <div class="confirm-actions">
+        <button class="confirm-btn submit" type="submit">ยืนยันลบบัญชี</button>
+        <button class="confirm-btn cancel" type="button" id="cancelDeleteButton">ยกเลิก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   (function () {
-    const modal = document.getElementById("suspendConfirmModal");
-    const accountNameNode = document.getElementById("suspendAccountName");
-    const confirmButton = document.getElementById("confirmSuspendButton");
-    const cancelButton = document.getElementById("cancelSuspendButton");
+    const suspendModal = document.getElementById("suspendConfirmModal");
+    const suspendAccountNameNode = document.getElementById("suspendAccountName");
+    const confirmSuspendButton = document.getElementById("confirmSuspendButton");
+    const cancelSuspendButton = document.getElementById("cancelSuspendButton");
     const suspendForms = document.querySelectorAll(".js-suspend-form");
-    let pendingForm = null;
+    const deleteForms = document.querySelectorAll(".js-delete-form");
+    const deleteModal = document.getElementById("deleteConfirmModal");
+    const deleteAccountNameNode = document.getElementById("deleteAccountName");
+    const deleteAccountEmailInput = document.getElementById("deleteAccountEmail");
+    const deletePasswordInput = document.getElementById("deleteAccountPassword");
+    const cancelDeleteButton = document.getElementById("cancelDeleteButton");
 
-    function closeModal() {
-      modal.classList.remove("is-open");
-      modal.setAttribute("aria-hidden", "true");
-      pendingForm = null;
+    let pendingSuspendForm = null;
+
+    function closeSuspendModal() {
+      suspendModal.classList.remove("is-open");
+      suspendModal.setAttribute("aria-hidden", "true");
+      pendingSuspendForm = null;
+    }
+
+    function closeDeleteModal() {
+      deleteModal.classList.remove("is-open");
+      deleteModal.setAttribute("aria-hidden", "true");
+      deleteAccountNameNode.textContent = "";
+      deleteAccountEmailInput.value = "";
+      deletePasswordInput.value = "";
     }
 
     suspendForms.forEach(function (form) {
@@ -595,30 +700,52 @@
         }
 
         event.preventDefault();
-        pendingForm = form;
-        accountNameNode.textContent = form.dataset.accountName || "";
-        modal.classList.add("is-open");
-        modal.setAttribute("aria-hidden", "false");
+        pendingSuspendForm = form;
+        suspendAccountNameNode.textContent = form.dataset.accountName || "";
+        suspendModal.classList.add("is-open");
+        suspendModal.setAttribute("aria-hidden", "false");
       });
     });
 
-    confirmButton.addEventListener("click", function () {
-      if (pendingForm) {
-        pendingForm.submit();
+    deleteForms.forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        deleteAccountNameNode.textContent = form.dataset.accountName || "";
+        deleteAccountEmailInput.value = form.dataset.accountEmail || "";
+        deleteModal.classList.add("is-open");
+        deleteModal.setAttribute("aria-hidden", "false");
+        deletePasswordInput.focus();
+      });
+    });
+
+    confirmSuspendButton.addEventListener("click", function () {
+      if (pendingSuspendForm) {
+        pendingSuspendForm.submit();
       }
     });
 
-    cancelButton.addEventListener("click", closeModal);
+    cancelSuspendButton.addEventListener("click", closeSuspendModal);
+    cancelDeleteButton.addEventListener("click", closeDeleteModal);
 
-    modal.addEventListener("click", function (event) {
-      if (event.target === modal) {
-        closeModal();
+    suspendModal.addEventListener("click", function (event) {
+      if (event.target === suspendModal) {
+        closeSuspendModal();
+      }
+    });
+
+    deleteModal.addEventListener("click", function (event) {
+      if (event.target === deleteModal) {
+        closeDeleteModal();
       }
     });
 
     document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && modal.classList.contains("is-open")) {
-        closeModal();
+      if (event.key === "Escape" && suspendModal.classList.contains("is-open")) {
+        closeSuspendModal();
+      }
+
+      if (event.key === "Escape" && deleteModal.classList.contains("is-open")) {
+        closeDeleteModal();
       }
     });
   })();

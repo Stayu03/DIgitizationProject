@@ -489,6 +489,11 @@ def add_user(
 ) -> None:
     """Create a new user account."""
     _validate_password(password)
+    normalized_role = (role or "").strip() or "Staff"
+    normalized_status = account_status if account_status in {"Active", "Inactive"} else "Active"
+    if normalized_role == "Admin":
+        normalized_status = "Active"
+
     conn.execute(
         """
         INSERT INTO users (email, user_name, password, role, account_status, note, created_at)
@@ -498,8 +503,8 @@ def add_user(
             email.strip().lower(),
             user_name.strip(),
             hash_password(password),
-            role,
-            account_status if account_status in {"Active", "Inactive"} else "Active",
+            normalized_role,
+            normalized_status,
             note.strip(),
             _iso_now(),
         ),
@@ -540,21 +545,28 @@ def update_user_account(
     role: str,
     account_status: str,
     password: str = "",
+    note: str = "",
 ) -> None:
-    """Update basic account information except password."""
+    """Update basic account information, with optional password and note."""
+    normalized_role = (role or "").strip() or "Staff"
+    normalized_status = account_status if account_status in {"Active", "Inactive"} else "Active"
+    if normalized_role == "Admin":
+        normalized_status = "Active"
+
     if password.strip():
         _validate_password(password)
         conn.execute(
             """
             UPDATE users
-            SET user_name = ?, role = ?, account_status = ?, password = ?
+            SET user_name = ?, role = ?, account_status = ?, password = ?, note = ?
             WHERE email = ?
             """,
             (
                 user_name.strip(),
-                role,
-                account_status if account_status in {"Active", "Inactive"} else "Active",
+                normalized_role,
+                normalized_status,
                 hash_password(password.strip()),
+                note.strip(),
                 current_email.strip().lower(),
             ),
         )
@@ -562,13 +574,14 @@ def update_user_account(
         conn.execute(
             """
             UPDATE users
-            SET user_name = ?, role = ?, account_status = ?
+            SET user_name = ?, role = ?, account_status = ?, note = ?
             WHERE email = ?
             """,
             (
                 user_name.strip(),
-                role,
-                account_status if account_status in {"Active", "Inactive"} else "Active",
+                normalized_role,
+                normalized_status,
+                note.strip(),
                 current_email.strip().lower(),
             ),
         )
@@ -577,10 +590,11 @@ def update_user_account(
 
 def update_user_status(conn: sqlite3.Connection, email: str, account_status: str) -> None:
     """Update a user's active/inactive status."""
+    normalized_status = account_status if account_status in {"Active", "Inactive"} else "Active"
     conn.execute(
-        "UPDATE users SET account_status = ? WHERE email = ?",
+        "UPDATE users SET account_status = ? WHERE email = ? AND role != 'Admin'",
         (
-            account_status if account_status in {"Active", "Inactive"} else "Active",
+            normalized_status,
             email.strip().lower(),
         ),
     )

@@ -869,15 +869,21 @@ def settings_page():
     if created_at and created_at != "-":
         created_at = str(created_at)
 
-    return render_template(
-        "setting.html",
-        account=account,
-        is_admin_user=is_admin_user,
-        password_display=session.get("current_password_plain", "********"),
-        created_at_display=created_at,
-        message=request.args.get("message", "").strip().lower(),
-        error=request.args.get("error", "").strip().lower(),
+    response = make_response(
+        render_template(
+            "setting.html",
+            account=account,
+            is_admin_user=is_admin_user,
+            password_display=session.get("current_password_plain", "********"),
+            created_at_display=created_at,
+            message=request.args.get("message", "").strip().lower(),
+            error=request.args.get("error", "").strip().lower(),
+        )
     )
+    # Avoid stale browser cache so profile changes (e.g., note) show promptly.
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.route("/system-management", methods=["GET", "POST"])
@@ -959,6 +965,7 @@ def user_management_page():
                     request.form.get("password", "").strip(),
                     request.form.get("role", "Staff").strip() or "Staff",
                     request.form.get("account_status", "Active").strip() or "Active",
+                    request.form.get("note", "").strip(),
                 )
             except (sqlite3.IntegrityError, ValueError):
                 error_message = "ไม่สามารถเพิ่มบัญชีผู้ใช้ได้ กรุณาตรวจสอบชื่อบัญชี อีเมล และรหัสผ่าน"
@@ -968,32 +975,61 @@ def user_management_page():
         if action == "edit":
             current_email = request.form.get("current_email", "").strip().lower()
             if current_email:
-                try:
-                    update_user_account(
-                        conn,
-                        current_email,
-                        request.form.get("user_name", "").strip(),
-                        request.form.get("role", "Staff").strip() or "Staff",
-                        request.form.get("account_status", "Active").strip() or "Active",
-                        request.form.get("password", ""),
-                    )
-                except (sqlite3.IntegrityError, ValueError):
-                    error_message = "ไม่สามารถอัปเดตข้อมูลบัญชีได้ กรุณาตรวจสอบชื่อบัญชี อีเมล และรหัสผ่าน"
+                requested_role = request.form.get("role", "Staff").strip() or "Staff"
+                session_email = (session.get("user_email") or "").strip().lower()
+                session_role = (session.get("user_role") or "").strip()
+
+                if (
+                    session_role == "Admin"
+                    and current_email == session_email
+                    and requested_role != "Admin"
+                ):
+                    error_message = "ไม่สามารถเปลี่ยนสิทธิ์บัญชี Admin ที่กำลังใช้งานอยู่เป็น Staff ได้"
                 else:
-                    return redirect(url_for("user_management_page", message="updated"))
+                    try:
+                        update_user_account(
+                            conn,
+                            current_email,
+                            request.form.get("user_name", "").strip(),
+                            requested_role,
+                            request.form.get("account_status", "Active").strip() or "Active",
+                            request.form.get("password", ""),
+                            request.form.get("note", "").strip(),
+                        )
+                    except (sqlite3.IntegrityError, ValueError):
+                        error_message = "ไม่สามารถอัปเดตข้อมูลบัญชีได้ กรุณาตรวจสอบชื่อบัญชี อีเมล และรหัสผ่าน"
+                    else:
+                        return redirect(url_for("user_management_page", message="updated"))
 
         if action == "toggle_status":
             email = request.form.get("email", "").strip().lower()
             target_status = request.form.get("target_status", "Inactive").strip()
-            if email and email != (session.get("user_email") or "").strip().lower():
+            current_email = (session.get("user_email") or "").strip().lower()
+            if email and email == current_email:
+                error_message = "ไม่สามารถระงับบัญชีผู้ใช้ที่กำลังใช้งานอยู่ได้"
+            elif email and (get_user_by_email(conn, email) or {}).get("role") == "Admin":
+                error_message = "บัญชี Admin มีสถานะเป็น Active เท่านั้น"
+            elif email:
                 update_user_status(conn, email, target_status)
-            return redirect(url_for("user_management_page", message="status"))
+                return redirect(url_for("user_management_page", message="status"))
 
         if action == "delete":
+            if session.get("user_role") != "Admin":
+                return "Forbidden", 403
+
             email = request.form.get("email", "").strip().lower()
-            if email and email != (session.get("user_email") or "").strip().lower():
+            password = request.form.get("password", "")
+            current_email = (session.get("user_email") or "").strip().lower()
+
+            if not current_email or not password:
+                error_message = "รหัสผ่านไม่ถูกต้อง ไม่สามารถลบบัญชีผู้ใช้ได้"
+            elif not authenticate_user(conn, current_email, password):
+                error_message = "รหัสผ่านไม่ถูกต้อง ไม่สามารถลบบัญชีผู้ใช้ได้"
+            elif email and email != current_email:
                 delete_user_account(conn, email)
-            return redirect(url_for("user_management_page", message="deleted"))
+                return redirect(url_for("user_management_page", message="deleted"))
+            else:
+                error_message = "ไม่สามารถลบบัญชีผู้ใช้ที่กำลังใช้งานอยู่ได้"
 
         if action == "reset_password":
             email = request.form.get("email", "").strip().lower()
@@ -1059,6 +1095,33 @@ def api_list_users():
     """API - List all users (JSON)."""
     users = list_users(conn)
     return jsonify([dict(u) for u in users])
+
+
+@app.route("/api/my-account", methods=["GET"])
+@login_required
+def api_my_account():
+    """API - Return current user's account profile for read-only live display."""
+    current_email = (session.get("user_email") or "").strip().lower()
+    if not current_email:
+        return jsonify({"error": "unauthorized"}), 401
+
+    account = get_user_by_email(conn, current_email)
+    if not account:
+        return jsonify({"error": "not_found"}), 404
+
+    response = make_response(
+        jsonify(
+            {
+                "email": account.get("email", ""),
+                "user_name": account.get("user_name", ""),
+                "note": account.get("note", ""),
+                "created_at": account.get("created_at", ""),
+            }
+        )
+    )
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.route("/api/documents", methods=["GET"])
